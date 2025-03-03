@@ -1,0 +1,8 @@
+lcm_version = "0.3.136"
+solutions = [
+    {
+        'name': '.',
+        'deps_file': 'dependencies/DEPS',
+        'url': 'git@github.com:lynx-family/tools_shared.git'
+    }
+]

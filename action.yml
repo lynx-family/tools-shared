@@ -1,0 +1,41 @@
+name: 'tools shared'
+description: 'The tools shared action is used to support static checking capability'
+inputs:
+  checkers:  # name of checker
+    description: 'What checker to use'
+    required: true
+    default: 'all'
+  all:
+    description: 'Is it necessary to conduct a full repository file check'
+    default: 'true'
+runs:
+  using: "composite"
+  steps:
+    - name: Run all check
+      if: ${{ inputs.checkers == 'all' }} 
+      run: |
+          python3 -m pip install requests PyYAML -i https://pypi.org/simple
+          tools/hab sync
+          source tools/envsetup.sh
+          if [ ${{ inputs.all }} == 'true' ]; then
+            git lynx check --all
+          else
+            git lynx check
+          fi
+      shell: bash
+    - name: Run check
+      if: ${{ inputs.checkers != 'all' }}
+      run: |
+        python3 -m pip install requests PyYAML -i https://pypi.org/simple
+        tools/hab sync
+        source tools/envsetup.sh
+        IFS=',' read -ra elements <<< "${{ inputs.checkers }}"
+        for element in "${elements[@]}"
+        do
+          if [ ${{ inputs.all }} == 'true' ]; then
+            git lynx check --checkers $element --all
+          else
+            git lynx check --checkers $element
+          fi
+        done
+      shell: bash

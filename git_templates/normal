@@ -1,0 +1,11 @@
+[label] Title of the commit message(one line)
+
+summary: Longer description of change addressing as appropriate: why the change
+is made, context if it is part of many changes, description of previous
+behavior and newly introduced differences, etc.
+
+Long lines should be wrapped to 72 columns for easier log message
+viewing in terminals.
+
+issue: m-xxx
+TEST: Test cases

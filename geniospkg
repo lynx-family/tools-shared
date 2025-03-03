@@ -1,0 +1,38 @@
+#!/bin/bash
+# Copyright 2024 The Lynx Authors. All rights reserved.
+# Licensed under the Apache License Version 2.0 that can be found in the
+# LICENSE file in the root directory of this source tree.
+
+set -x
+set -e
+
+# This script is used to generate a iOS source code package with zip format
+BASENAME="${0%/*}"
+
+if [ -z "$PACKAGE_ENV" ]; then
+    PACKAGE_ENV="local"
+fi
+echo "========== iOS source code packaging in the $PACKAGE_ENV environment =========="
+
+
+if [ "$PACKAGE_ENV" = "local" ]; then
+    if [ ! -d "package_example" ]; then
+        mkdir package_example
+    fi
+    if [ ! -f "package_example/package.zip" ]; then
+        git archive -o package_example/package.zip `git branch --show-current`
+    fi
+    cd package_example
+    if [ ! -d "package" ]; then
+        unzip package.zip -d package
+        cd package
+        # habitat requires a git repository
+        git init
+        git add .
+        git commit -m "init"
+    else
+        cd package
+    fi
+fi
+
+python3 $BASENAME/gen_ios_pkg.py "$@"

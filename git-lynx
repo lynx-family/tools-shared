@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Copyright 2024 The Lynx Authors. All rights reserved.
+# Licensed under the Apache License Version 2.0 that can be found in the
+# LICENSE file in the root directory of this source tree.
+
+BASENAME="${0%/*}"
+
+# NPM configuration
+export NPM_CONFIG_UPDATE_NOTIFIER=false
+
+export BUILDTOOLS_DIR="${BASENAME}/buildtools"
+export PATH=$BASENAME:${BUILDTOOLS_DIR}/clang-format:${BUILDTOOLS_DIR}/gn:${BUILDTOOLS_DIR}/node/bin:$PATH
+python3 $BASENAME/git_lynx.py $@
