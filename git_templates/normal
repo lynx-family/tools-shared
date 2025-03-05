@@ -8,4 +8,5 @@ Long lines should be wrapped to 72 columns for easier log message
 viewing in terminals.
 
 issue: m-xxx
+doc: https://xxxxxxxx
 TEST: Test cases
