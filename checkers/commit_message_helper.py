@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2024 The Lynx Authors. All rights reserved.
+# Copyright 2025 The Lynx Authors. All rights reserved.
 # Licensed under the Apache License Version 2.0 that can be found in the
 # LICENSE file in the root directory of this source tree.
 
@@ -7,7 +7,21 @@ import re
 
 ERROR_NO_ERROR = 0
 ERROR_MALFORMED_MESSAGE = 1
-ERROR_MISSING_ISSUE = 2
+ERROR_MISSING_DOC = 2
+
+AVAILABLE_LABELS = [
+    "Feature",
+    "Refactor",
+    "Optimize",
+    "BugFix",
+    "Infra",
+    "Testing",
+    "Doc",
+]
+
+TITLE_PATTERN = re.compile(r"^(\[Reland\])?\[([A-Za-z]+)\]\s*(.*)")
+
+COMMIT_MESSAGE_MIN_LINES = 3
 
 
 def IsRevertedCommit(commit_lines):
@@ -26,22 +40,36 @@ def IsAutoRollCommit(commit_lines):
 def CheckCommitMessage(message):
     error_code, error_message = ERROR_NO_ERROR, ""
     commit_lines = message.strip().split("\n")
-    # skip revert commit
 
+    # skip revert commit
     if IsRevertedCommit(commit_lines):
         return error_code, error_message
     elif IsAutoRollCommit(commit_lines):
         return error_code, error_message
     else:
-        reg_str = r"(\[\S+\])(\s*(\S+))+$"
-        if re.match(reg_str, commit_lines[0]):
-            pass
-        # check title
-        else:
+        if len(commit_lines) < COMMIT_MESSAGE_MIN_LINES:
             return (
                 ERROR_MALFORMED_MESSAGE,
-                f'Malformed title. Title "{commit_lines[0]} not match reg "{reg_str}"',
+                "Malformed commit message. At least {} lines are required.".format(
+                    COMMIT_MESSAGE_MIN_LINES
+                ),
             )
+        if label := re.match(TITLE_PATTERN, commit_lines[0]):
+            if label.groups()[1] not in AVAILABLE_LABELS:
+                return (
+                    ERROR_MALFORMED_MESSAGE,
+                    'Invalid label "'
+                    + label.groups()[1]
+                    + '", should be one of '
+                    + ", ".join(AVAILABLE_LABELS[0:-2])
+                    + " or "
+                    + AVAILABLE_LABELS[-1]
+                    + ".",
+                )
+            need_doc = label.groups()[1] in ["Feature", "Refactor"]
+        # check title
+        else:
+            return ERROR_MALFORMED_MESSAGE, "Malformed title."
 
         if commit_lines[1] != "":
             return (
@@ -49,18 +77,21 @@ def CheckCommitMessage(message):
                 "No empty lines found between title and summary.",
             )
 
-        # Currently only check whether the 'issue' line is present.
-        error_code, error_message = ERROR_MISSING_ISSUE, "Missing issue"
-        summary = ""
+        summary_found = False
+        doc_found = False
         for line in commit_lines[2:]:
-            summary += line
-            if re.match(
-                r"((issue):\s*([FfMm]-|(\#))(\d)+)|(no-((meego)|(workitem)))", line
-            ):
-                if len(summary.strip()) == 0:
-                    return ERROR_MALFORMED_MESSAGE, "No summary found."
-                error_code, error_message = ERROR_NO_ERROR, ""
-                break
+            if not line.strip():
+                continue
+            elif re.match(r"(doc):\s*https?://(.*)", line):
+                doc_found = True
+            else:
+                summary_found = True
+
+        if not summary_found:
+            return ERROR_MALFORMED_MESSAGE, "Summary is required."
+
+        if need_doc and not doc_found:
+            return ERROR_MISSING_DOC, "Missing doc link."
     return error_code, error_message
 
 
