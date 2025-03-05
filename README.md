@@ -14,16 +14,24 @@ cd tools-shared
 ./hab sync -f .
 ```
 ### Initialize the environment.
-After this step, a sub-command "git lynx check" will be added to the git tool.
+After this step, a sub-command "git lynx" will be added to the git tool.
 ```bash
 source envsetup.sh
 ```
 
 ### Run check
+You can use the following commands to check if your last commit meets the pre-merge checks
 ```bash
 git lynx check --help
 git lynx check --list
 git lynx check
+```
+
+### Run format
+If you have coding style issues, you can use the following commands to automatically format your code
+```bash
+git lynx format --help
+git lynx format
 ```
 
 ### Custom configuration

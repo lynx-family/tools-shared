@@ -1,4 +1,4 @@
-lcm_version = "0.3.136"
+habitat_version = "0.3.136"
 solutions = [
     {
         'name': '.',
