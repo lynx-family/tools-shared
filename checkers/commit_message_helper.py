@@ -21,7 +21,6 @@ AVAILABLE_LABELS = [
 
 TITLE_PATTERN = re.compile(r"^(\[Reland\])?\[([A-Za-z]+)\]\s*(.*)")
 
-COMMIT_MESSAGE_MIN_LINES = 3
 
 
 def IsRevertedCommit(commit_lines):
@@ -47,13 +46,6 @@ def CheckCommitMessage(message):
     elif IsAutoRollCommit(commit_lines):
         return error_code, error_message
     else:
-        if len(commit_lines) < COMMIT_MESSAGE_MIN_LINES:
-            return (
-                ERROR_MALFORMED_MESSAGE,
-                "Malformed commit message. At least {} lines are required.".format(
-                    COMMIT_MESSAGE_MIN_LINES
-                ),
-            )
         if label := re.match(TITLE_PATTERN, commit_lines[0]):
             if label.groups()[1] not in AVAILABLE_LABELS:
                 return (
@@ -71,6 +63,12 @@ def CheckCommitMessage(message):
         else:
             return ERROR_MALFORMED_MESSAGE, "Malformed title."
 
+        if len(commit_lines) == 1:
+            return (
+                ERROR_MALFORMED_MESSAGE,
+                "No summary lines found.",
+            )
+            
         if commit_lines[1] != "":
             return (
                 ERROR_MALFORMED_MESSAGE,
