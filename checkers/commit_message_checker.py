@@ -26,7 +26,7 @@ class CommitMessageChecker(Checker):
                 "    TEST: Test cases (Optional)\n"
             )
             print(
-                "Please make sure the commit message conforms to the format specified in the repository path './docs/COMMIT_MESSAGE_FORMAT.md' or the document below:"
+                "Please make sure the commit message conforms to the format specified in this document, which can be found at repository path './docs/COMMIT_MESSAGE_FORMAT.md' or via the following link:"
             )
             print(
                 "    https://github.com/lynx-family/tools-shared/blob/main/docs/COMMIT_MESSAGE_FORMAT.md\n"
