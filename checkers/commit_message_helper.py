@@ -61,7 +61,7 @@ def CheckCommitMessage(message):
             need_doc = label.groups()[1] in ["Feature", "Refactor"]
         # check title
         else:
-            return ERROR_MALFORMED_MESSAGE, "Malformed title."
+            return ERROR_MALFORMED_MESSAGE, "Malformed title. The title needs to specify a label like '[Label]'"
 
         if len(commit_lines) == 1:
             return (
