@@ -64,6 +64,14 @@ class AndroidCodeStyleChecker(Checker):
             return {"line": -1, "reason": None}
         pattern = r"\[ERROR\] .+:(\d+):\d+: (.+)"
         match = re.search(pattern, error_message)
+        
+        # TODO(zhaosonggo@gmail.com): Use a better approach, or configure Checkstyle to skip the detection of the 'lang' package.
+        # Checkstyle prohibits explicit imports of the 'lang' package, 
+        # but when writing JNI-related logic, we need to import it explicitly, which causes conflicts. 
+        # Therefore, here we add a hack operation to suppress the explicit import error of the 'lang' package.
+        # https://checkstyle.sourceforge.io/checks/imports/unusedimports.html
+        if "java.lang" in error_message:
+            return {"line": -1, "reason": None}
 
         if match:
             return {"line": int(match.group(1)), "reason": error_message}
