@@ -63,30 +63,12 @@ def CheckCommitMessage(message):
         else:
             return ERROR_MALFORMED_MESSAGE, "Malformed title. The title needs to specify a label like '[Label]'"
 
-        if len(commit_lines) == 1:
-            return (
-                ERROR_MALFORMED_MESSAGE,
-                "No summary lines found.",
-            )
-            
-        if commit_lines[1] != "":
-            return (
-                ERROR_MALFORMED_MESSAGE,
-                "No empty lines found between title and summary.",
-            )
-
-        summary_found = False
         doc_found = False
-        for line in commit_lines[2:]:
+        for line in commit_lines[1:]:
             if not line.strip():
                 continue
             elif re.match(r"(doc):\s*https?://(.*)", line):
                 doc_found = True
-            else:
-                summary_found = True
-
-        if not summary_found:
-            return ERROR_MALFORMED_MESSAGE, "Summary is required."
 
         if need_doc and not doc_found:
             return ERROR_MISSING_DOC, "Missing doc link."
