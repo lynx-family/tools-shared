@@ -15,4 +15,11 @@ checker_default_config = {
         "header-search-paths": [],
         "first-header-search-paths": [],
     },
+    "api-checker": {
+        "api-dirs": {
+            "android": None,
+            "ios": None,
+            "ios-common": None,
+        },
+    },
 }

@@ -22,7 +22,6 @@ AVAILABLE_LABELS = [
 TITLE_PATTERN = re.compile(r"^(\[Reland\])?\[([A-Za-z]+)\]\s*(.*)")
 
 
-
 def IsRevertedCommit(commit_lines):
     for line in commit_lines[1:]:
         if re.match(r"This reverts commit *", line):
@@ -61,7 +60,10 @@ def CheckCommitMessage(message):
             need_doc = label.groups()[1] in ["Feature", "Refactor"]
         # check title
         else:
-            return ERROR_MALFORMED_MESSAGE, "Malformed title. The title needs to specify a label like '[Label]'"
+            return (
+                ERROR_MALFORMED_MESSAGE,
+                "Malformed title. The title needs to specify a label like '[Label]'",
+            )
 
         doc_found = False
         for line in commit_lines[1:]:
