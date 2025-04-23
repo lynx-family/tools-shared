@@ -13,6 +13,7 @@ deps = {
         "type": "http",
         "url": f"https://github.com/lynx-family/buildtools/releases/download/clang-format-020d2fb7/buildtools-clang-format-{system}-{machine}.tar.gz",
         "ignore_in_git": True,
+        "condition": system in ['linux', 'darwin']
     },
     'buildtools/gn': {
         "type": "http",
