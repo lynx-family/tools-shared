@@ -14,6 +14,7 @@ IOS_PATH = Config.value("checker-config", "api-checker", "api-dirs", "ios")
 IOS_COMMON_PATH = Config.value(
     "checker-config", "api-checker", "api-dirs", "ios-common"
 )
+INSTRUCTION_DOC = Config.value("checker-config", "api-checker", "instruction-doc")
 
 
 class APIChecker(Checker):
@@ -36,12 +37,14 @@ class APIChecker(Checker):
             print(e.stderr)
             return CheckResult.FAILED
 
-        cmd = ["git", "diff", "--name-only"]
+        cmd = ["git", "diff"]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         if len(result.stdout) > 0 and (
             "lynx_android.api" in result.stdout or "lynx_ios.api" in result.stdout
         ):
-            print("Found files possibly not containing proper api metadata.")
+            print(
+                f"Found files possibly not containing proper api metadata, please refer to {INSTRUCTION_DOC} for more information."
+            )
             print(result.stdout)
             print(
                 'Please run "git status" or "git diff" to check local changes. You can "git add" these files and commit again.'
