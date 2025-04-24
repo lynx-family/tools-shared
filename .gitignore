@@ -1,2 +1,8 @@
 __pycache__
 external
+
+buildtools/clang-format
+buildtools/gn
+buildtools/node
+buildtools/pmd
+buildtools/checkstyle/checkstyle.jar

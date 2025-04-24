@@ -6,7 +6,6 @@ machine = platform.machine().lower()
 machine = "x86_64" if machine == "amd64" else machine
 system = platform.system().lower()
 
-base_url = 'https://xxx'
 
 deps = {
     'buildtools/clang-format': {
