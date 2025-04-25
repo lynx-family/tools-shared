@@ -21,5 +21,6 @@ checker_default_config = {
             "ios": None,
             "ios-common": None,
         },
+        "instruction-doc": None,
     },
 }
