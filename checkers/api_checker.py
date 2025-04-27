@@ -50,7 +50,7 @@ class APIChecker(Checker):
                 'Please run "git status" or "git diff" to check local changes. You can "git add" these files and commit again.'
             )
             print(
-                "If there are false positives or any other unexpected issues , please kindly inform 16253004+pilipala195@users.noreply.github.com the situation so that we shall improve it."
+                "If there are false positives or any other unexpected issues , please create an issue and inform @pilipala195 the situation so that we shall improve it."
             )
             print("Sorry for your trouble. Appreciate your help.")
 
