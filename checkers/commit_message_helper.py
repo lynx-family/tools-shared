@@ -8,6 +8,7 @@ import re
 ERROR_NO_ERROR = 0
 ERROR_MALFORMED_MESSAGE = 1
 ERROR_MISSING_DOC = 2
+WARNING_MISSING_DOC = 100
 
 AVAILABLE_LABELS = [
     "Feature",
@@ -73,7 +74,7 @@ def CheckCommitMessage(message):
                 doc_found = True
 
         if need_doc and not doc_found:
-            return ERROR_MISSING_DOC, "Missing doc link."
+            return WARNING_MISSING_DOC, "Missing doc link."
     return error_code, error_message
 
 

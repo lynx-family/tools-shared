@@ -3,7 +3,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from checkers.checker import Checker, CheckResult
-from checkers.commit_message_helper import CheckCommitMessage
+from checkers.commit_message_helper import CheckCommitMessage, WARNING_MISSING_DOC, ERROR_MALFORMED_MESSAGE, ERROR_MISSING_DOC
 
 
 class CommitMessageChecker(Checker):
@@ -14,7 +14,11 @@ class CommitMessageChecker(Checker):
         print("Checking commit message...")
         commit_message = mr.GetCommitLog()
         has_error, message = CheckCommitMessage(commit_message)
-        if has_error:
+        if has_error == WARNING_MISSING_DOC:
+            print("\033[33mWarning: %s\033[0m" % message)
+            print("The commit message is missing a doc link, which is recommended for Feature/Refactor labels but not strictly required.")
+            return CheckResult.PASSED
+        elif has_error:
             print("Error checking commit message:")
             print(("\033[31m    ==> %s\n\033[0m" % message))
             print("The commit message should be formatted as follow:\n")
