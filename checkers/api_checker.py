@@ -59,6 +59,9 @@ class APIChecker(Checker):
             return CheckResult.PASSED
 
     def skip(self, options, mr, changed_files) -> bool:
+        if options.all:
+            return False
+
         changed_files = [
             file
             for file in changed_files
