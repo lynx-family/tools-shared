@@ -148,7 +148,7 @@ def copy_to_target_folder(source_files, repo_name, source_dirs):
                 continue
 
 
-def replace_source_of_podspec(repo_name, tag, is_private_repo, no_json):
+def replace_source_of_podspec(repo_name, tag, is_private_repo, no_json, artifact_name):
     content = None
     if not is_private_repo:
         with open(f"{repo_name}.podspec.json", "r") as f:
@@ -160,7 +160,7 @@ def replace_source_of_podspec(repo_name, tag, is_private_repo, no_json):
             ref = ref.replace("refs/tags/", "")
         target_source = {}
         target_source["http"] = (
-            f"https://github.com/{source_code_repo}/releases/download/{tag}/{repo_name}.zip"
+            f"https://github.com/{source_code_repo}/releases/download/{tag}/{artifact_name}.zip"
         )
         content["source"] = target_source
         # update the podspec
@@ -221,10 +221,15 @@ def main():
     )
     parser.add_argument("--tag", type=str, help="The tag of pod")
     parser.add_argument("--package_dir", type=str, help="The root dir of package")
+    parser.add_argument('-dev', action="store_true", help='Build dev version')
     args = parser.parse_args()
 
     repo_name = args.repo
     source_dirs = ["build"]
+
+    artifact_name = repo_name
+    if args.dev:
+        artifact_name = artifact_name + "-dev"
 
     # step1: generate the zip file
     if args.output_type == "both" or args.output_type == "zip":
@@ -250,9 +255,9 @@ def main():
                     f"mv {tmp_dir}/.* {target_dir}/{args.package_dir}", check=False
                 )
 
-            run_command(f'cd {target_dir} && zip -r ../{repo_name}.zip * -x "*.zip"')
+            run_command(f'cd {target_dir} && zip -r ../{artifact_name}.zip * -x "*.zip"')
         else:
-            run_command(f'zip -r {repo_name}.zip * -x "*.zip"')
+            run_command(f'zip -r {artifact_name}.zip * -x "*.zip"')
 
     # step2: udapte the podspec file
     if args.output_type == "both" or args.output_type == "podspec":
@@ -260,7 +265,7 @@ def main():
             # replace the source of podspec
             print("start replacing source of podspec")
             replace_source_of_podspec(
-                repo_name, args.tag, args.private_repo, args.no_json
+                repo_name, args.tag, args.private_repo, args.no_json, artifact_name
             )
 
     if args.no_json:
