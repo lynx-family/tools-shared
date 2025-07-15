@@ -96,11 +96,7 @@ def delete_useless_files(source_files, repo_name, source_dirs):
             file_name = os.path.join(root, file_name)
             if file_name not in source_files:
                 base_name = os.path.basename(file_name)
-                if (
-                    base_name != f"{repo_name}.podspec"
-                    and base_name != f"{repo_name}.podspec.json"
-                    and base_name != "LICENSE"
-                ):
+                if base_name != f"{repo_name}.podspec.json" and base_name != "LICENSE":
                     os.remove(file_name)
 
     run_command("find . -type d -empty -delete")
@@ -148,7 +144,7 @@ def copy_to_target_folder(source_files, repo_name, source_dirs):
                 continue
 
 
-def replace_source_of_podspec(repo_name, tag, is_private_repo, no_json):
+def replace_source_of_podspec(repo_name, tag, is_private_repo, no_json, zip_name):
     content = None
     if not is_private_repo:
         with open(f"{repo_name}.podspec.json", "r") as f:
@@ -160,7 +156,7 @@ def replace_source_of_podspec(repo_name, tag, is_private_repo, no_json):
             ref = ref.replace("refs/tags/", "")
         target_source = {}
         target_source["http"] = (
-            f"https://github.com/{source_code_repo}/releases/download/{tag}/{repo_name}.zip"
+            f"https://github.com/{source_code_repo}/releases/download/{tag}/{zip_name}"
         )
         content["source"] = target_source
         # update the podspec
@@ -221,10 +217,13 @@ def main():
     )
     parser.add_argument("--tag", type=str, help="The tag of pod")
     parser.add_argument("--package_dir", type=str, help="The root dir of package")
+    parser.add_argument("--zip_name", type=str, help="The name of source code zip file")
     args = parser.parse_args()
 
     repo_name = args.repo
     source_dirs = ["build"]
+
+    zip_name = args.zip_name if args.zip_name else f"{repo_name}.zip"
 
     # step1: generate the zip file
     if args.output_type == "both" or args.output_type == "zip":
@@ -250,22 +249,22 @@ def main():
                     f"mv {tmp_dir}/.* {target_dir}/{args.package_dir}", check=False
                 )
 
-            run_command(f'cd {target_dir} && zip -r ../{repo_name}.zip * -x "*.zip"')
+            run_command(f'cd {target_dir} && zip -r ../{zip_name} * -x "*.zip"')
         else:
-            run_command(f'zip -r {repo_name}.zip * -x "*.zip"')
+            run_command(f'zip -r {zip_name} * -x "*.zip"')
 
     # step2: udapte the podspec file
     if args.output_type == "both" or args.output_type == "podspec":
-        if args.private_repo or args.public_repo:
-            # replace the source of podspec
-            print("start replacing source of podspec")
-            replace_source_of_podspec(
-                repo_name, args.tag, args.private_repo, args.no_json
-            )
-
-    if args.no_json:
-        run_command(f"rm -rf {repo_name}.podspec.json")
+        # replace the source of podspec
+        print("start replacing source of podspec")
+        replace_source_of_podspec(
+            repo_name, args.tag, args.private_repo, args.no_json, zip_name
+        )
+        if args.no_json:
+            run_command(f"rm -rf {repo_name}.podspec.json")
     else:
+        # delete all podspec files regardless of whether a JSON file is generated.
+        run_command(f"rm -rf {repo_name}.podspec.json")
         run_command(f"rm -rf {repo_name}.podspec")
 
 
