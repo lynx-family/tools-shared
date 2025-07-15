@@ -221,10 +221,13 @@ def main():
     )
     parser.add_argument("--tag", type=str, help="The tag of pod")
     parser.add_argument("--package_dir", type=str, help="The root dir of package")
+    parser.add_argument("--zip_name", type=str, help="The name of source code zip file")
     args = parser.parse_args()
 
     repo_name = args.repo
     source_dirs = ["build"]
+    
+    zip_name = args.zip_name if args.zip_name else repo_name
 
     # step1: generate the zip file
     if args.output_type == "both" or args.output_type == "zip":
@@ -250,9 +253,9 @@ def main():
                     f"mv {tmp_dir}/.* {target_dir}/{args.package_dir}", check=False
                 )
 
-            run_command(f'cd {target_dir} && zip -r ../{repo_name}.zip * -x "*.zip"')
+            run_command(f'cd {target_dir} && zip -r ../{zip_name}.zip * -x "*.zip"')
         else:
-            run_command(f'zip -r {repo_name}.zip * -x "*.zip"')
+            run_command(f'zip -r {zip_name}.zip * -x "*.zip"')
 
     # step2: udapte the podspec file
     if args.output_type == "both" or args.output_type == "podspec":
