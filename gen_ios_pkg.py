@@ -129,7 +129,6 @@ def copy_to_target_folder(source_files, repo_name, source_dirs):
             complete_file_name = os.path.join(root, file_name)
             if (
                 complete_file_name in source_files
-                or file_name == f"{repo_name}.podspec"
                 or file_name == f"{repo_name}.podspec.json"
                 or (file_name == "LICENSE" and root == current_directory)
             ):
@@ -248,7 +247,6 @@ def main():
                 run_command(
                     f"mv {tmp_dir}/.* {target_dir}/{args.package_dir}", check=False
                 )
-
             run_command(f'cd {target_dir} && zip -r ../{zip_name} * -x "*.zip"')
         else:
             run_command(f'zip -r {zip_name} * -x "*.zip"')
