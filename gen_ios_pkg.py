@@ -10,9 +10,7 @@ import argparse
 import subprocess
 from cocoapods.specification import Specification
 from cocoapods.pod import Pod
-import re
 import shutil
-import requests
 
 target_dir = "source_package"
 
@@ -27,33 +25,12 @@ def run_command(command, check=True):
         ["bash", "-c", command], stderr=subprocess.STDOUT, check=check, text=True
     )
 
+def get_podspec_version(repo_name):
+    with open(f"{repo_name}.podspec.json", "r") as f:
+        content = json.load(f)
+    return content["version"]
 
-def get_github_release_url(repo_name, tag_name):
-    source_code_repo = os.environ.get("GITHUB_REPOSITORY")
-    token = os.environ.get("GITHUB_TOKEN")
-    header = {
-        "Accept": "Accept: application/vnd.github+json",
-        "authorization": f"Bearer {token}",
-    }
-    res = requests.get(
-        f"https://api.github.com/repos/{source_code_repo}/releases/tags/{tag_name}",
-        headers=header,
-    )
-    print(f"get the release info: {res.json()}")
-    for asset in res.json()["assets"]:
-        if asset["name"] == f"{repo_name}.zip":
-            return asset["url"]
-    return ""
-
-
-def get_source_files(repo_name, cache_path):
-    print("run generate_podspec")
-    run_command(
-        f"SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk bundle install --path {cache_path}"
-    )
-    run_command(
-        f"bundle exec pod ipc spec {repo_name}.podspec > {repo_name}.podspec.json"
-    )
+def get_source_files(repo_name):
     content = None
     with open(f"{repo_name}.podspec.json", "r") as f:
         content = json.load(f)
@@ -115,7 +92,9 @@ def copy_to_target_folder(source_files, repo_name, source_dirs):
     source_files = [
         os.path.join(current_directory, file_name) for file_name in source_files
     ]
-    source_dirs_list = [os.path.join(current_directory, ".github")]
+    source_dirs_list = [
+        os.path.join(current_directory, dir_item) for dir_item in source_dirs
+    ]
     for root, dirnames, filenames in os.walk(current_directory):
         # exclude target file in os.walk
         dirnames[:] = [d for d in dirnames if d != target_dir]
@@ -143,39 +122,19 @@ def copy_to_target_folder(source_files, repo_name, source_dirs):
                 continue
 
 
-def replace_source_of_podspec(repo_name, tag, is_private_repo, no_json, zip_name):
-    content = None
-    if not is_private_repo:
-        with open(f"{repo_name}.podspec.json", "r") as f:
-            content = json.load(f)
-        content["prepare_command"] = ""
-        source_code_repo = os.environ.get("GITHUB_REPOSITORY")
-        ref = os.environ.get("GITHUB_REF")
-        if ref:
-            ref = ref.replace("refs/tags/", "")
-        target_source = {}
-        target_source["http"] = (
-            f"https://github.com/{source_code_repo}/releases/download/{tag}/{zip_name}"
-        )
-        content["source"] = target_source
-        # update the podspec
-        with open(f"{repo_name}.podspec.json", "w") as f:
-            json.dump(content, f, indent=4)
-
-    if no_json and is_private_repo:
-        pattern_source = "(\S+.source\s*=\s*{)\s*:git\s*=>[\s\S]*?(})"
-        pattern_prepare_command = "(\S+.prepare_command\s*=\s*)<<-CMD[\s\S]*?CMD"
-        zip_url = get_github_release_url(repo_name, tag)
-        with open(f"{repo_name}.podspec", "r") as f:
-            content = f.read()
-        content = re.sub(pattern_prepare_command, r'\1""', content)
-        content = re.sub(
-            pattern_source,
-            f'\\1 :http => "{zip_url}",type: :zip,:headers => [ "Accept: application/octet-stream","Authorization: token #{{ ENV[\'GITHUB_TOKEN\'] }}" ]\\2',
-            content,
-        )
-        with open(f"{repo_name}.podspec", "w") as f:
-            f.write(content)
+def replace_source_of_podspec(repo_name, tag, zip_name):
+    with open(f"{repo_name}.podspec.json", "r") as f:
+        content = json.load(f)
+    content["prepare_command"] = ""
+    source_code_repo = os.environ.get("GITHUB_REPOSITORY")
+    target_source = {}
+    target_source["http"] = (
+        f"https://github.com/{source_code_repo}/releases/download/{tag}/{zip_name}"
+    )
+    content["source"] = target_source
+    # update the podspec
+    with open(f"{repo_name}.podspec.json", "w") as f:
+        json.dump(content, f, indent=4)
 
 
 def main():
@@ -189,16 +148,6 @@ def main():
     # no_json means that using the podspec file as the final file rather than podspec.json file
     parser.add_argument(
         "--no_json", action="store_true", help="Whether to generate podspec.json"
-    )
-    parser.add_argument(
-        "--private_repo",
-        action="store_true",
-        help="Replace the source of podspec by private http zip link",
-    )
-    parser.add_argument(
-        "--public_repo",
-        action="store_true",
-        help="Replace the source of podspec by public http zip link",
     )
 
     parser.add_argument(
@@ -214,19 +163,28 @@ def main():
         action="store_true",
         help="Whether to delete files other than the source code package",
     )
-    parser.add_argument("--tag", type=str, help="The tag of pod")
+    parser.add_argument("--tag", type=str, help="The release tag of component")
     parser.add_argument("--package_dir", type=str, help="The root dir of package")
-    parser.add_argument("--zip_name", type=str, help="The name of source code zip file")
     args = parser.parse_args()
 
     repo_name = args.repo
     source_dirs = ["build"]
 
-    zip_name = args.zip_name if args.zip_name else f"{repo_name}.zip"
+    
+    print("run generate_podspec")
+    run_command(
+        f"SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk bundle install --path {args.cache_path}"
+    )
+    run_command(
+        f"bundle exec pod ipc spec {repo_name}.podspec > {repo_name}.podspec.json"
+    )
+    
+    version = get_podspec_version(repo_name)
+    zip_name = f"{repo_name}-{version}.zip"
 
     # step1: generate the zip file
     if args.output_type == "both" or args.output_type == "zip":
-        source_files = get_source_files(repo_name, args.cache_path)
+        source_files = get_source_files(repo_name)
 
         if args.delete:
             delete_useless_files(source_files, repo_name, source_dirs)
@@ -255,9 +213,7 @@ def main():
     if args.output_type == "both" or args.output_type == "podspec":
         # replace the source of podspec
         print("start replacing source of podspec")
-        replace_source_of_podspec(
-            repo_name, args.tag, args.private_repo, args.no_json, zip_name
-        )
+        replace_source_of_podspec(repo_name, args.tag, zip_name)
         if args.no_json:
             run_command(f"rm -rf {repo_name}.podspec.json")
     else:
