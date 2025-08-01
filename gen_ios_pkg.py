@@ -125,7 +125,8 @@ def copy_to_target_folder(source_files, repo_name, source_dirs):
 def replace_source_of_podspec(repo_name, tag, zip_name):
     with open(f"{repo_name}.podspec.json", "r") as f:
         content = json.load(f)
-    content["prepare_command"] = ""
+    if "prepare_command" in content:
+        content.pop("prepare_command")
     source_code_repo = os.environ.get("GITHUB_REPOSITORY")
     target_source = {}
     target_source["http"] = (
