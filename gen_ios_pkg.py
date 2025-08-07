@@ -30,7 +30,7 @@ def get_podspec_version(repo_name):
         content = json.load(f)
     return content["version"]
 
-def get_source_files(repo_name):
+def get_source_files(repo_name, tag, zip_name):
     content = None
     with open(f"{repo_name}.podspec.json", "r") as f:
         content = json.load(f)
@@ -39,6 +39,7 @@ def get_source_files(repo_name):
         prepare_command = content["prepare_command"]
         run_command(prepare_command)
 
+    replace_source_of_podspec(repo_name, tag, zip_name)
     # get the source file name by using the Specification
     pod = Pod(name="", version="", source=None)
     # only need use pod.target_dir
@@ -185,7 +186,7 @@ def main():
 
     # step1: generate the zip file
     if args.output_type == "both" or args.output_type == "zip":
-        source_files = get_source_files(repo_name)
+        source_files = get_source_files(repo_name, args.tag, zip_name)
 
         if args.delete:
             delete_useless_files(source_files, repo_name, source_dirs)
