@@ -6,7 +6,7 @@ import os
 from utils.merge_request import MergeRequest
 import subprocess
 import sys
-from checkers.default_config import checker_default_config
+from checkers.default_config import checker_default_config, command_default_config
 
 
 class Config:
@@ -16,6 +16,7 @@ class Config:
     def init():
         # merge checker default config
         Config.data["checker-config"] = checker_default_config
+        Config.data["command-config"] = command_default_config
         Config.data["external_checker_path"] = None
         # merge custom config
         mr = MergeRequest()

@@ -6,6 +6,7 @@ import sys
 import checkers.code_format_helper as code_format_helper
 import checkers.format_file_filter as format_file_filter
 from checkers.checker import Checker, CheckResult
+from config import Config
 
 
 class CodingStyleChecker(Checker):
@@ -15,8 +16,16 @@ class CodingStyleChecker(Checker):
     def run(self, options, mr, changed_files):
         failed_path = []
         print("Checking file format.")
+        forbidden_suffix = Config.value(
+            "checker-config", "coding-style-checker", "ignore-suffixes"
+        )
+        forbidden_dirs = Config.value(
+            "checker-config", "coding-style-checker", "ignore-dirs"
+        )
         for filename in changed_files:
-            if format_file_filter.shouldFormatFile(filename):
+            if format_file_filter.shouldFormatFile(
+                filename, forbidden_suffix, forbidden_dirs
+            ):
                 print(f"checking {filename}")
                 if not code_format_helper.check_format(filename):
                     failed_path.append(filename)

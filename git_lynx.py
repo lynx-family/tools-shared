@@ -167,6 +167,10 @@ def CMDformat(parser, args):
     old_cwd = os.getcwd()
     mr = MergeRequest()
     os.chdir(mr.GetRootDirectory())
+    forbidden_suffix = Config.value(
+        "command-config", "format-command", "ignore-suffixes"
+    )
+    forbidden_dirs = Config.value("command-config", "format-command", "ignore-dirs")
     try:
         if options.all:
             changed_files = mr.GetAllFiles()
@@ -175,7 +179,9 @@ def CMDformat(parser, args):
         else:
             changed_files = mr.GetLastCommitFiles()
         for filename in changed_files:
-            if format_file_filter.shouldFormatFile(filename):
+            if format_file_filter.shouldFormatFile(
+                filename, forbidden_suffix, forbidden_dirs
+            ):
                 command = format_file_filter.getFormatCommand(filename)
                 output, error = mr.RunCommand(command)
                 if error:
