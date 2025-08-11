@@ -44,12 +44,6 @@ __FORMAT_COMMAND_NO_INSTALL = {
     ".gn": ["{} format ".format(gn_path)],
     ".gni": ["{} format ".format(gn_path)],
 }
-# Files endsWith these suffixes will not be checked.
-_FORBIDDEN_SUFFIXES = Config.value(
-    "checker-config", "coding-style-checker", "ignore-suffixes"
-)
-# Files in these directories will not be checked.
-_FORBIDDEN_DIRS = Config.value("checker-config", "coding-style-checker", "ignore-dirs")
 
 
 def filterFileExtension(path):
@@ -59,15 +53,15 @@ def filterFileExtension(path):
     return False
 
 
-def filterSuffix(path):
-    for suffix in _FORBIDDEN_SUFFIXES:
+def filterSuffix(path, forbidden_suffixes):
+    for suffix in forbidden_suffixes:
         if path.endswith(suffix):
             return False
     return True
 
 
-def filterPathPrefix(path):
-    for dir in _FORBIDDEN_DIRS:
+def filterPathPrefix(path, forbidden_dirs):
+    for dir in forbidden_dirs:
         if re.match(dir, path):
             return False
     return True
@@ -92,8 +86,12 @@ def getFormatCommand(path):
     return ["clang-format", "-i", path] + [";"] + getEndWithNewlineCommand(path)
 
 
-def shouldFormatFile(path):
-    return filterFileExtension(path) and filterSuffix(path) and filterPathPrefix(path)
+def shouldFormatFile(path, forbidden_suffixes=[], forbidden_dirs=[]):
+    return (
+        filterFileExtension(path)
+        and filterSuffix(path, forbidden_suffixes)
+        and filterPathPrefix(path, forbidden_dirs)
+    )
 
 
 if __name__ == "__main__":

@@ -25,10 +25,12 @@ def run_command(command, check=True):
         ["bash", "-c", command], stderr=subprocess.STDOUT, check=check, text=True
     )
 
+
 def get_podspec_version(repo_name):
     with open(f"{repo_name}.podspec.json", "r") as f:
         content = json.load(f)
     return content["version"]
+
 
 def get_source_files(repo_name, tag, zip_name):
     content = None
@@ -172,7 +174,6 @@ def main():
     repo_name = args.repo
     source_dirs = ["build"]
 
-    
     print("run generate_podspec")
     run_command(
         f"SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk bundle install --path {args.cache_path}"
@@ -180,7 +181,7 @@ def main():
     run_command(
         f"bundle exec pod ipc spec {repo_name}.podspec > {repo_name}.podspec.json"
     )
-    
+
     version = get_podspec_version(repo_name)
     zip_name = f"{repo_name}-{version}.zip"
 

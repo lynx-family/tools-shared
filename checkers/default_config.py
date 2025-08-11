@@ -8,6 +8,7 @@ checker_default_config = {
         "binary-files-allow-list": [],
     },
     "coding-style-checker": {"ignore-suffixes": [], "ignore-dirs": []},
+    "cpplint-checker": {"ignore-suffixes": [], "ignore-dirs": []},
     "header-path-checker": {
         "processed-file-dirs": [],
         "exclude-processed-file-dirs": [],
@@ -23,4 +24,8 @@ checker_default_config = {
         },
         "instruction-doc": None,
     },
+}
+
+command_default_config = {
+    "format-command": {"ignore-suffixes": [], "ignore-dirs": []},
 }

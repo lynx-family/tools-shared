@@ -4,6 +4,7 @@
 import checkers.cpplint as cpplint
 import checkers.format_file_filter as format_file_filter
 from checkers.checker import Checker, CheckResult
+from config import Config
 
 
 class CpplintChecker(Checker):
@@ -11,8 +12,16 @@ class CpplintChecker(Checker):
     help = "Run cpplint"
 
     def run(self, options, mr, changed_files):
+        forbidden_suffix = Config.value(
+            "checker-config", "cpplint-checker", "ignore-suffixes"
+        )
+        forbidden_dirs = Config.value(
+            "checker-config", "cpplint-checker", "ignore-dirs"
+        )
         for filename in changed_files:
-            if format_file_filter.shouldFormatFile(filename):
+            if format_file_filter.shouldFormatFile(
+                filename, forbidden_suffix, forbidden_dirs
+            ):
                 print(f"checking {filename}")
                 cpplint.ProcessFile(filename, 0)
         if (cpplint.GetErrorCount()) > 0:
