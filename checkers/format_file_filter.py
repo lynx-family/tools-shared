@@ -5,9 +5,12 @@
 
 import re
 import sys, os, subprocess
+import platform
 from utils.merge_request import MergeRequest
 from config import Config
+import checkers.cpplint as cpplint
 
+system = platform.system().lower()
 gn_path = "gn"
 
 # Only check format for following file types.
@@ -46,6 +49,14 @@ __FORMAT_COMMAND_NO_INSTALL = {
 }
 
 
+def init(options):
+    if options.ktlint:
+        # if ktlint enabled, add ktlint rules
+        _FORMAT_COMMAND.update({".kt": ["ktlint -F"]})
+        __FORMAT_COMMAND_NO_INSTALL.update({".kt": "ktlint -F"})
+        _FILE_EXTENSIONS.append(".kt")
+
+
 def filterFileExtension(path):
     for ext in _FILE_EXTENSIONS:
         if path.endswith(ext):
@@ -68,7 +79,25 @@ def filterPathPrefix(path, forbidden_dirs):
 
 
 def getEndWithNewlineCommand(path):
-    return ["tail", "-c1", "<", path, "|", "read", "-r", "_", "||", "echo", ">>", path]
+    if system == "windows":
+        return [
+            f'$content = Get-Content -Path "{path}" -Raw; if (-not $content.EndsWith(\\"`n\\")) {{ Add-Content -Path "{path}" -Value \\"`n\\" -NoNewline }}'
+        ]
+    else:
+        return [
+            "tail",
+            "-c1",
+            "<",
+            path,
+            "|",
+            "read",
+            "-r",
+            "_",
+            "||",
+            "echo",
+            ">>",
+            path,
+        ]
 
 
 def getFormatCommand(path):
@@ -81,8 +110,20 @@ def getFormatCommand(path):
 
     for ext, command in list(format_command.items()):
         if path.endswith(ext):
-            return command + [path] + [";"] + getEndWithNewlineCommand(path)
+            if system == "windows":
+                # On windows, concatenate commands into a string and execute them using PowerShell.
+                command_str = " ".join(command + [path])
+                newline_command = " ".join(getEndWithNewlineCommand(path))
+                return ["powershell", "-Command", f"{command_str}; {newline_command}"]
+            else:
+                return command + [path] + [";"] + getEndWithNewlineCommand(path)
+    if path.endswith("h") or path.endswith("hpp"):
+        cpplint.ProcessFileForLynx(path, 6)
     # defaults to clang-format
+    if system == "windows":
+        clang_command = " ".join(["clang-format", "-i", path])
+        newline_command = " ".join(getEndWithNewlineCommand(path))
+        return ["powershell", "-Command", f"{clang_command}; {newline_command}"]
     return ["clang-format", "-i", path] + [";"] + getEndWithNewlineCommand(path)
 
 
@@ -110,7 +151,7 @@ if __name__ == "__main__":
     testFile("dafdasf.js")
     testFile("Lynx/aaa_jni.h")
     testFile("Lynx/BUILD.gn")
-    testFile("Lynx/Lynx.gni")
+    testFile("core/Lynx.gni")
     testFile("Lynx/third_party/ddd.h")
     testFile("oliver/lynx-kernel/src/index.ts")
     testFile("oliver/lynx-kernel/gulpfile.js")
