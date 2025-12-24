@@ -23,7 +23,7 @@ class CpplintChecker(Checker):
                 filename, forbidden_suffix, forbidden_dirs
             ):
                 print(f"checking {filename}")
-                cpplint.ProcessFile(filename, 0)
+                cpplint.ProcessFileForLynx(filename, 0)
         if (cpplint.GetErrorCount()) > 0:
             print("Please check the following errors:\n")
             for error in cpplint.GetErrorStingList():

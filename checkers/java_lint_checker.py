@@ -7,7 +7,7 @@ import sys
 import os
 
 from utils.merge_request import MergeRequest
-from env import Env
+from default_env import Env
 
 
 def get_all_rulesets(type):

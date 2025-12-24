@@ -19,7 +19,10 @@ class MergeRequest:
         result, error = p.communicate()
         # Compatibale with Python 3.
         # Since the return value of communicate is bytes instead of str in Python 3.
-        return result.decode("utf-8"), error.decode("utf-8")
+        try:
+            return result.decode("utf-8"), error.decode("utf-8")
+        except UnicodeDecodeError:
+            return "", f"Error decode for the result of command: {' '.join(command)}"
 
     # Get project/git root directory
     def GetRootDirectory(self):
@@ -34,6 +37,72 @@ class MergeRequest:
             )
             return None
         return result.strip()
+
+    def GetAllLFSManagerFiles(self):
+        command = ["git", "lfs", "ls-files"]
+        result, error = self.RunCommand(command)
+        if error:
+            print(
+                (
+                    "Error, can not get top directory, make sure it is a git repo: %s"
+                    % (error)
+                )
+            )
+            return None
+        output_list = [i.split("*") for i in result.strip().split("\n")]
+        files = []
+        for o in output_list:
+            if len(o) == 2:
+                files.append(o[1].strip())
+        return files
+
+    def GetChangedLFSManagerFiles(self):
+        all_lfs_files = self.GetAllLFSManagerFiles()
+        changed_files = self.GetChangedFiles()
+        set1 = set(all_lfs_files)
+        set2 = set(changed_files)
+        intersection = set1.intersection(set2)
+        intersection_list = list(intersection)
+        return intersection_list
+
+    def GetLastCommitLFSManagerFiles(self):
+        all_lfs_files = self.GetAllLFSManagerFiles()
+        last_commit_files = self.GetLastCommitFiles()
+        set1 = set(all_lfs_files)
+        set2 = set(last_commit_files)
+        intersection = set1.intersection(set2)
+        intersection_list = list(intersection)
+        return intersection_list
+
+    # Get untracked files.
+    def GetUntrackedFiles(self):
+        file_list = []
+        command = ["git", "ls-files", "--others", "--exclude-standard"]
+        result, error = self.RunCommand(command)
+        if error:
+            print(
+                (
+                    "Error, can not get untracked files, make sure it is a git repo: %s"
+                    % (error)
+                )
+            )
+        for filename in result.split("\n"):
+            filename = filename.strip()
+            if filename and filename != "":
+                file_list.append(filename)
+        return file_list
+
+    def GetChangedLines(self):
+        cmd = ["git", "diff", "-U0"]
+        result, error = self.RunCommand(cmd)
+        if error:
+            print(
+                (
+                    "Error, can not get staged lines, make sure it is a git repo: %s"
+                    % error
+                )
+            )
+        return result
 
     # Get uncommitted changed files.
     def GetChangedFiles(self):
@@ -126,3 +195,4 @@ if __name__ == "__main__":
     print((mr.GetChangedFiles()))
     print((mr.GetCommitLog()))
     print((mr.GetAllFiles()))
+    print((mr.GetLastCommitLFSManagerFiles()))
