@@ -1,0 +1,9 @@
+# In order to test both direct execution and calling from lynx_tools
+
+# Run from same path, i.e. tools/lynx_tools/checkers/copyright
+# python3 copyright_processor.py -c -f testcases/LLog.java
+# python3 copyright_processor.py -c -d testcases
+# python3 copyright_processor.py -c -l file_unfiltered_[timestamp].list
+
+# Run from tools/lynx_tools
+# python3 git_lynx.py check --checkers copyright
