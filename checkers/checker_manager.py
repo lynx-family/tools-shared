@@ -5,9 +5,11 @@
 import checkers
 import os
 import sys
+import importlib
 from config import Config
 from checkers.checker import Checker
 from utils.find_classes import find_classes
+from utils.merge_request import MergeRequest
 
 
 def is_checker(cls):
@@ -22,6 +24,13 @@ class CheckerManager:
 
         self.load_external_checker()
         self.remove_ignore_checker(ignore)
+        default_disable_checkers = Config.value(
+            "checker-config", "default-disable-checkers"
+        )
+        if default_disable_checkers is None:
+            return
+        disable_checkers = ",".join(default_disable_checkers)
+        self.remove_ignore_checker(disable_checkers)
 
     def remove_ignore_checker(self, ignore):
         old_checker_class = self.checker_classes
@@ -32,17 +41,22 @@ class CheckerManager:
         }
 
     def load_external_checker(self):
-        external_checker_path = Config.get("external_checker_path")
+        external_checker_path = Config.value("external-checker-path")
         if external_checker_path is None:
             return
+        mr = MergeRequest()
+        project_root = mr.GetRootDirectory()
         abs_dir_path = os.path.abspath(external_checker_path)
         if not os.path.isdir(abs_dir_path):
             raise NotADirectoryError(f"The path {abs_dir_path} is not a directory.")
-        sys.path.insert(0, abs_dir_path)
+        sys.path.insert(0, project_root)
         try:
-            import external_checkers
+            external_checkers = external_checker_path.replace("/", ".")
+            external_checkers_module = importlib.import_module(external_checkers)
 
-            classes = find_classes(external_checkers, is_checker, recursive=False)
+            classes = find_classes(
+                external_checkers_module, is_checker, recursive=False
+            )
             for c in classes:
                 self.checker_classes[c.name] = c
         except Exception as e:

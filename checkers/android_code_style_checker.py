@@ -6,7 +6,7 @@ import re
 import subprocess
 import sys
 from checkers.checker import Checker, CheckResult
-from env import Env
+from default_env import Env
 
 DEFAULT_XML_CONTENT = """<?xml version="1.0"?>
 <!-- 

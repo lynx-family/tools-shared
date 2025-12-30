@@ -3,9 +3,11 @@
 # Licensed under the Apache License Version 2.0 that can be found in the
 # LICENSE file in the root directory of this source tree.
 import inspect
+import json
 import optparse
 import os
 import pkgutil
+import requests
 
 import checkers
 import subcommand
@@ -131,7 +133,8 @@ def CMDcheck(parser, args):
         for name in checker_names:
             if name not in checker_manager.checker_classes:
                 raise Exception("Checker " + name + " not found")
-            target_checkers.append(checker_manager.checker_classes.get(name)())
+            if name not in skipped_checks:
+                target_checkers.append(checker_manager.checker_classes.get(name)())
     old_cwd = os.getcwd()
     os.chdir(mr.GetRootDirectory())
     try:
@@ -158,6 +161,9 @@ def CMDformat(parser, args):
     parser.add_option(
         "--verbose", action="store_true", help="Verbose the process of clang-format."
     )
+    parser.add_option(
+        "--ktlint", action="store_true", help="Enable kotlin format with ktlint"
+    )
     options, args = parser.parse_args(args)
     try:
         import checkers.format_file_filter as format_file_filter
@@ -171,6 +177,7 @@ def CMDformat(parser, args):
         "command-config", "format-command", "ignore-suffixes"
     )
     forbidden_dirs = Config.value("command-config", "format-command", "ignore-dirs")
+    format_file_filter.init(options)
     try:
         if options.all:
             changed_files = mr.GetAllFiles()
@@ -199,6 +206,87 @@ def CMDformat(parser, args):
 def CMDcommit(parser, args):
     script_dir = os.path.dirname(os.path.realpath(__file__))
     os.system("git commit -t" + script_dir + "/git_templates/normal")
+
+
+# git lynx aicommit: Generate an AI-powered commit message based on git diff
+def CMDaicommit(parser, args):
+    parser.add_option(
+        "--issue-id",
+        help="Optional issue ID to include in the commit message",
+        default="",
+    )
+    parser.add_option(
+        "--doc-id",
+        help="Optional document ID to include in the commit message",
+        default="",
+    )
+    parser.add_option(
+        "--thinking",
+        action="store_true",
+        help="Enable extended thinking mode for better reasoning",
+        default=False,
+    )
+    options, args = parser.parse_args(args)
+
+    mr = MergeRequest()
+
+    output, error = mr.RunCommand(["git", "diff", "--cached"])
+    if error:
+        print(f"Error getting git diff: {error}")
+        sys.exit(1)
+
+    git_diff = output
+    if not git_diff:
+        print("No changes to commit. Please stage your changes first.")
+        sys.exit(1)
+
+    diff_length = len(git_diff)
+    print(f"Staged diff length: {diff_length} characters")
+    print()
+
+    payload = {
+        "git_diff": git_diff,
+        "issue_id": options.issue_id,
+        "doc_id": options.doc_id,
+        "thinking": options.thinking,
+    }
+
+    open_api_url = Config.value("ai-commit-request-url")
+    if not open_api_url:
+        print(
+            "AI commit message API URL not configured. Please set it in the your .tools_shared file."
+        )
+        sys.exit(1)
+    try:
+        response = requests.post(
+            open_api_url,
+            json=payload,
+            timeout=120,
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"Error calling AI commit message API: {e}")
+        sys.exit(1)
+
+    try:
+        result = response.json()
+        if result.get("code") != 0:
+            print(f'API Error: {result.get("msg", "Unknown error")}')
+            sys.exit(1)
+
+        commit_message = result.get("data", {}).get("commit_message", "")
+        if not commit_message:
+            print("No commit message generated. Please try again.")
+            sys.exit(1)
+
+        print("Generated commit message:")
+        print("-" * 80)
+        print(commit_message)
+        print("-" * 80)
+
+    except json.JSONDecodeError:
+        print("Error parsing API response")
+        sys.exit(1)
 
 
 def CMDhelp(parser, args):

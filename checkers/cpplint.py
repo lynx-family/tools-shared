@@ -57,7 +57,14 @@ import sre_compile
 import string
 import sys
 import unicodedata
+import shutil
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from header_guard_processor import (
+    HeaderGuardInfo,
+    process_file_header_guard_if_needed,
+    is_object_c_header,
+)
 
 _USAGE = r"""
 Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
@@ -1239,6 +1246,24 @@ def _ShouldPrintError(category, confidence, linenum):
     return True
 
 
+def _ShouldFormatHeaderGuard(category):
+
+    is_filtered = False
+    for one_filter in _Filters():
+        if one_filter.startswith("-"):
+            if category.startswith(one_filter[1:]):
+                is_filtered = True
+        elif one_filter.startswith("+"):
+            if category.startswith(one_filter[1:]):
+                is_filtered = False
+        else:
+            assert False  # should have been checked for in SetFilter.
+    if is_filtered:
+        return False
+
+    return True
+
+
 def Error(filename, linenum, category, confidence, message):
     """Logs the fact we've found a lint error.
 
@@ -1889,7 +1914,7 @@ def GetHeaderGuardCPPVariable(filename):
     return re.sub(r"[^a-zA-Z0-9]", "_", file_path_from_root).upper() + "_"
 
 
-def CheckForHeaderGuard(filename, clean_lines, error):
+def CheckForHeaderGuard(filename, clean_lines, error, raw_lines_without_deal):
     """Checks that the file contains a header guard.
 
     Logs an error if no #ifndef header guard is present.  For other
@@ -1912,6 +1937,11 @@ def CheckForHeaderGuard(filename, clean_lines, error):
         if Search(r"//\s*NOLINT\(build/header_guard\)", i):
             return
 
+    # Lynx added.
+    # Check if this is an object C header file.
+    if is_object_c_header(filename, raw_lines):
+        return
+
     cppvar = GetHeaderGuardCPPVariable(filename)
 
     ifndef = ""
@@ -1933,6 +1963,13 @@ def CheckForHeaderGuard(filename, clean_lines, error):
         if line.startswith("#endif"):
             endif = line
             endif_linenum = linenum
+
+    # Lynx added.
+    if _ShouldFormatHeaderGuard("build/header_guard"):
+        header_guard_info = HeaderGuardInfo(
+            filename, ifndef, ifndef_linenum, define, endif, endif_linenum, cppvar
+        )
+        process_file_header_guard_if_needed(header_guard_info, raw_lines_without_deal)
 
     if not ifndef or not define or ifndef != define:
         error(
@@ -6762,6 +6799,7 @@ def ProcessFileData(filename, file_extension, lines, error, extra_check_function
         + lines
         + ["// marker so line numbers end in a known way"]
     )
+    raw_lines_without_deal = list(lines)
 
     include_state = _IncludeState()
     function_state = _FunctionState()
@@ -6774,8 +6812,8 @@ def ProcessFileData(filename, file_extension, lines, error, extra_check_function
     RemoveMultiLineComments(filename, lines, error)
     clean_lines = CleansedLines(lines)
 
-    if file_extension == "h":
-        CheckForHeaderGuard(filename, clean_lines, error)
+    if file_extension == "h" or file_extension == "hpp":
+        CheckForHeaderGuard(filename, clean_lines, error, raw_lines_without_deal)
 
     for line in range(clean_lines.NumLines()):
         ProcessLine(
@@ -6986,8 +7024,8 @@ def ProcessFile(filename, vlevel, extra_check_functions=[]):
                     1,
                     "Unexpected \\r (^M) found; better to use only \\n",
                 )
-
-    sys.stderr.write("Done processing %s\n" % filename)
+    if vlevel >= 0 and vlevel < 6:
+        sys.stderr.write("Done processing %s\n" % filename)
     _RestoreFilters()
 
 
@@ -7102,6 +7140,27 @@ def ParseArguments(args):
     _SetCountingStyle(counting_style)
 
     return filenames
+
+
+# Lynx added.
+def ProcessFileWithSubDirs(filename, vlevel, sub_git_dirs, extra_check_functions=[]):
+    """
+    Workaround for sub git dirs folder cpp lint check:
+    Creating a .git tmp director in sub git dirs folder,
+    to prevent header guard check failed in sub git dirs directory
+    """
+    for sub_git_dir in sub_git_dirs:
+        if os.path.exists(sub_git_dir):
+            git_dir = os.path.join(sub_git_dir, ".git")
+            os.makedirs(git_dir, exist_ok=True)
+
+    ProcessFile(filename, vlevel, extra_check_functions)
+
+    for sub_git_dir in sub_git_dirs:
+        git_dir = os.path.join(sub_git_dir, ".git")
+        if os.path.exists(git_dir):
+            # Remove the .git tmp directory.
+            shutil.rmtree(git_dir)
 
 
 def main():
