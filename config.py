@@ -6,7 +6,12 @@ import os
 from utils.merge_request import MergeRequest
 import subprocess
 import sys
-from checkers.default_config import checker_default_config, command_default_config
+from checkers.default_config import (
+    checker_default_config,
+    command_default_config,
+    external_checker_path,
+    ai_commit_request_url,
+)
 
 
 class Config:
@@ -17,7 +22,8 @@ class Config:
         # merge checker default config
         Config.data["checker-config"] = checker_default_config
         Config.data["command-config"] = command_default_config
-        Config.data["external_checker_path"] = None
+        Config.data["external-checker-path"] = external_checker_path
+        Config.data["ai-commit-request-url"] = ai_commit_request_url
         # merge custom config
         mr = MergeRequest()
         root_dir = mr.GetRootDirectory()

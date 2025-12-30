@@ -13,11 +13,15 @@ BINARY_FILES_ALLOW_LIST = Config.value(
     "checker-config", "file-type-checker", "binary-files-allow-list"
 )
 
+_LFS_FILES_CACHE = None
+_ACCEPTED_CHARS = bytearray(
+    {7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7F}
+)
+
 
 def is_binary(file_path):
-    chars = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7F})
     with open(file_path, "rb") as f:
-        return bool(f.read(1024).translate(None, chars))
+        return bool(f.read(1024).translate(None, _ACCEPTED_CHARS))
 
 
 def in_allow_list(file_path):
@@ -36,9 +40,11 @@ def is_lfs_files(file_path):
 
 
 def get_lfs_files():
-    output = subprocess.check_output(["git", "lfs", "ls-files", "--name-only"])
-    file_list = output.decode("utf-8").splitlines()
-    return file_list
+    global _LFS_FILES_CACHE
+    if _LFS_FILES_CACHE is None:
+        output = subprocess.check_output(["git", "lfs", "ls-files", "--name-only"])
+        _LFS_FILES_CACHE = output.decode("utf-8").splitlines()
+    return _LFS_FILES_CACHE
 
 
 class FileTypeChecker(Checker):

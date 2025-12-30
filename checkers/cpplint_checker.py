@@ -18,12 +18,13 @@ class CpplintChecker(Checker):
         forbidden_dirs = Config.value(
             "checker-config", "cpplint-checker", "ignore-dirs"
         )
+        sub_git_dirs = Config.value("checker-config", "cpplint-checker", "sub-git-dirs")
         for filename in changed_files:
             if format_file_filter.shouldFormatFile(
                 filename, forbidden_suffix, forbidden_dirs
             ):
                 print(f"checking {filename}")
-                cpplint.ProcessFile(filename, 0)
+                cpplint.ProcessFileWithSubDirs(filename, 0, sub_git_dirs)
         if (cpplint.GetErrorCount()) > 0:
             print("Please check the following errors:\n")
             for error in cpplint.GetErrorStingList():
