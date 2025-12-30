@@ -9,11 +9,10 @@ import sys
 from checkers.checker import Checker, CheckResult
 from config import Config
 
-ANDROID_PATH = Config.value("checker-config", "api-checker", "api-dirs", "android")
-IOS_PATH = Config.value("checker-config", "api-checker", "api-dirs", "ios")
-IOS_COMMON_PATH = Config.value(
-    "checker-config", "api-checker", "api-dirs", "ios-common"
-)
+FILE_SUFFIXES = Config.value("checker-config", "api-checker", "check-file-suffixes")
+FILE_SUBPATHS = Config.value("checker-config", "api-checker", "check-file-subpaths")
+JAVA_FILE_PATHS = Config.value("checker-config", "api-checker", "java-path")
+CPP_FILE_PATHS = Config.value("checker-config", "api-checker", "cpp-path")
 INSTRUCTION_DOC = Config.value("checker-config", "api-checker", "instruction-doc")
 
 
@@ -26,9 +25,13 @@ class APIChecker(Checker):
             return CheckResult.PASSED
 
         LYNX_ROOT_PATH = mr.GetRootDirectory()
+        api_check_bin = os.path.join(LYNX_ROOT_PATH, "tools", "api", "main.py")
+        if not os.path.exists(api_check_bin):
+            print(f"api check bin {api_check_bin} not exists")
+            return CheckResult.PASSED
         cmd = [
             sys.executable,
-            os.path.join(LYNX_ROOT_PATH, "tools", "api", "main.py"),
+            api_check_bin,
             "-u",
         ]
         try:
@@ -40,7 +43,9 @@ class APIChecker(Checker):
         cmd = ["git", "diff"]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         if len(result.stdout) > 0 and (
-            "lynx_android.api" in result.stdout or "lynx_ios.api" in result.stdout
+            "lynx_android.api" in result.stdout
+            or "lynx_ios.api" in result.stdout
+            or "lynx_harmony.api" in result.stdout
         ):
             print(
                 f"Found files possibly not containing proper api metadata, please refer to {INSTRUCTION_DOC} for more information."
@@ -62,14 +67,29 @@ class APIChecker(Checker):
         if options.all:
             return False
 
-        changed_files = [
-            file
-            for file in changed_files
-            if (ANDROID_PATH in file and file.endswith(".java"))
-            or ((IOS_PATH in file or IOS_COMMON_PATH in file) and file.endswith(".h"))
-            or file.endswith(".api")
-        ]
-        if len(changed_files) == 0:
+        new_changed_files = []
+        for file in changed_files:
+            if file.endswith(".java"):
+                for java_path in JAVA_FILE_PATHS:
+                    if java_path in file:
+                        new_changed_files.append(file)
+                        break
+            elif file.endswith(".h"):
+                for cpp_path in CPP_FILE_PATHS:
+                    if cpp_path in file:
+                        new_changed_files.append(file)
+                        break
+            else:
+                for suffix in FILE_SUFFIXES:
+                    if file.endswith(suffix):
+                        new_changed_files.append(file)
+                        return
+                for subpath in FILE_SUBPATHS:
+                    if subpath in file:
+                        new_changed_files.append(file)
+                        return
+
+        if len(new_changed_files) == 0:
             print("No changed files related with lynx native api, skip api check")
             return True
         return False
