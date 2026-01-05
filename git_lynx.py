@@ -50,7 +50,7 @@ def CMDbuild(parser, args):
         from check_android_build import CheckAndroidBuild
         from check_test_build import CheckTestTargetBuild, CheckEncoderUTBuild
     except ImportError as error:
-        print(("Import Error: %s" % (error)))
+        print(f"Import Error: {error}")
     old_cwd = os.getcwd()
     os.chdir(root_directory)
     try:
@@ -192,10 +192,10 @@ def CMDformat(parser, args):
                 command = format_file_filter.getFormatCommand(filename)
                 output, error = mr.RunCommand(command)
                 if error:
-                    print(("Error clang-format %s: %s" % (filename, error)))
+                    print(f"Error clang-format {filename}: {error}")
                     continue
                 if options.verbose:
-                    print(("Formatting %s: %s" % (filename, output)))
+                    print(f"Formatting {filename}: {output}")
     finally:
         os.chdir(old_cwd)
 
