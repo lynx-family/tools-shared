@@ -82,7 +82,7 @@ class Checker:
         for section in sections:
             # section => (file_name_index, base_line_number, lines)
             if verbose:
-                print("check section %s:%s" % (section[0], section[1]))
+                print(f"check section {section[0]}:{section[1]}")
             for i in range(len(section[2])):
                 current_offset += 1
                 line_indexes[current_offset] = (section[0], section[1] + i)
@@ -90,7 +90,7 @@ class Checker:
 
         if verbose:
             for i, line in enumerate(changed_lines):
-                print("%d: %s" % (i, line))
+                print(f"{i}: {line}")
                 file_name_index, line_no = line_indexes[i]
                 print(self._file_name_cache.get(file_name_index) + ":" + str(line_no))
 
