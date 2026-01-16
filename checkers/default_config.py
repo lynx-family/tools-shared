@@ -22,6 +22,7 @@ checker_default_config = {
         "ignore-dirs": [],
     },
     "api-checker": {
+        "api-check-bin": "api-checker/main.py",
         "java-path": [],
         "cpp-path": [],
         "check-file-suffixes": [],
