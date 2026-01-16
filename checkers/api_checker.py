@@ -9,6 +9,7 @@ import sys
 from checkers.checker import Checker, CheckResult
 from config import Config
 
+API_CHECK_BIN = Config.value("checker-config", "api-checker", "api-check-bin")
 FILE_SUFFIXES = Config.value("checker-config", "api-checker", "check-file-suffixes")
 FILE_SUBPATHS = Config.value("checker-config", "api-checker", "check-file-subpaths")
 JAVA_FILE_PATHS = Config.value("checker-config", "api-checker", "java-path")
@@ -25,7 +26,7 @@ class APIChecker(Checker):
             return CheckResult.PASSED
 
         LYNX_ROOT_PATH = mr.GetRootDirectory()
-        api_check_bin = os.path.join(LYNX_ROOT_PATH, "tools", "api", "main.py")
+        api_check_bin = os.path.join(LYNX_ROOT_PATH, API_CHECK_BIN)
         if not os.path.exists(api_check_bin):
             print(f"api check bin {api_check_bin} not exists")
             return CheckResult.PASSED
