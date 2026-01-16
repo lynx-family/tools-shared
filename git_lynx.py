@@ -18,6 +18,7 @@ from checkers.checker import Checker, CheckResult
 from checkers.checker_manager import CheckerManager
 from utils.merge_request import MergeRequest
 from config import Config
+import checkers.cpplint as cpplint
 
 
 def print_cutting_line(desc="", width=80):
@@ -189,6 +190,11 @@ def CMDformat(parser, args):
             if format_file_filter.shouldFormatFile(
                 filename, forbidden_suffix, forbidden_dirs
             ):
+                if filename.endswith("h") or filename.endswith("hpp"):
+                    sub_git_dirs = Config.value(
+                        "checker-config", "cpplint-checker", "sub-git-dirs"
+                    )
+                    cpplint.ProcessFileWithSubDirs(filename, 6, sub_git_dirs)
                 command = format_file_filter.getFormatCommand(filename)
                 output, error = mr.RunCommand(command)
                 if error:

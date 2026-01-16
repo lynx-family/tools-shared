@@ -8,7 +8,6 @@ import sys, os, subprocess
 import platform
 from utils.merge_request import MergeRequest
 from config import Config
-import checkers.cpplint as cpplint
 
 system = platform.system().lower()
 gn_path = "gn"
@@ -40,10 +39,10 @@ _FORMAT_COMMAND = {
     ".gni": ["{} format ".format(gn_path)],
 }
 __FORMAT_COMMAND_NO_INSTALL = {
-    ".yml": "npx --quiet --no-install prettier@2.2.1",
-    ".yaml": "npx --quiet --no-install prettier@2.2.1",
-    ".ts": "npx --quiet --no-install prettier@2.2.1",
-    ".tsx": "npx --quiet --no-install prettier@2.2.1",
+    ".yml": ["npx", "--quiet", "--no-install", "prettier@2.2.1"],
+    ".yaml": ["npx", "--quiet", "--no-install", "prettier@2.2.1"],
+    ".ts": ["npx", "--quiet", "--no-install", "prettier@2.2.1"],
+    ".tsx": ["npx", "--quiet", "--no-install", "prettier@2.2.1"],
     ".gn": ["{} format ".format(gn_path)],
     ".gni": ["{} format ".format(gn_path)],
 }
@@ -100,32 +99,41 @@ def getEndWithNewlineCommand(path):
         ]
 
 
-def getFormatCommand(path):
-    format_command = _FORMAT_COMMAND
+def getClangFormatCommand(path, is_in_place):
+    if is_in_place:
+        return ["clang-format", "-style=file", "-i", path]
+    return ["clang-format", "-style=file", path]
 
-    # read configuration
-    npx_no_install = Config.get("npx-no-install")
-    if npx_no_install:
-        format_command = __FORMAT_COMMAND_NO_INSTALL
 
-    for ext, command in list(format_command.items()):
+def addCommandIfNeeded(cmd_one, cmd_two, is_needed):
+    if is_needed:
+        if system == "windows":
+            # On windows, concatenate commands into a string and execute them using PowerShell.
+            command_1 = " ".join(cmd_one)
+            command_2 = " ".join(cmd_two)
+            return ["powershell", "-Command", f"{command_1}; {command_2}"]
+        else:
+            return cmd_one + [";"] + cmd_two
+    else:
+        return cmd_one
+
+
+def getFormatCommand(path, is_in_place=True):
+    format_command = __FORMAT_COMMAND_NO_INSTALL
+    if is_in_place:
+        format_command = _FORMAT_COMMAND
+
+    for ext, command in format_command.items():
         if path.endswith(ext):
-            if system == "windows":
-                # On windows, concatenate commands into a string and execute them using PowerShell.
-                command_str = " ".join(command + [path])
-                newline_command = " ".join(getEndWithNewlineCommand(path))
-                return ["powershell", "-Command", f"{command_str}; {newline_command}"]
-            else:
-                return command + [path] + [";"] + getEndWithNewlineCommand(path)
-    if path.endswith("h") or path.endswith("hpp"):
-        sub_git_dirs = Config.value("checker-config", "cpplint-checker", "sub-git-dirs")
-        cpplint.ProcessFileWithSubDirs(path, 6, sub_git_dirs)
+            return addCommandIfNeeded(
+                command + [path], getEndWithNewlineCommand(path), is_in_place
+            )
     # defaults to clang-format
-    if system == "windows":
-        clang_command = " ".join(["clang-format", "-i", path])
-        newline_command = " ".join(getEndWithNewlineCommand(path))
-        return ["powershell", "-Command", f"{clang_command}; {newline_command}"]
-    return ["clang-format", "-i", path] + [";"] + getEndWithNewlineCommand(path)
+    return addCommandIfNeeded(
+        getClangFormatCommand(path, is_in_place),
+        getEndWithNewlineCommand(path),
+        is_in_place,
+    )
 
 
 def shouldFormatFile(path, forbidden_suffixes=[], forbidden_dirs=[]):
