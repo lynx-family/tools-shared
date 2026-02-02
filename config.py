@@ -11,6 +11,7 @@ from checkers.default_config import (
     command_default_config,
     external_checker_path,
     ai_commit_request_url,
+    prefer_local_prettier,
 )
 
 
@@ -24,6 +25,7 @@ class Config:
         Config.data["command-config"] = command_default_config
         Config.data["external-checker-path"] = external_checker_path
         Config.data["ai-commit-request-url"] = ai_commit_request_url
+        Config.data["prefer_local_prettier"] = prefer_local_prettier
         # merge custom config
         mr = MergeRequest()
         root_dir = mr.GetRootDirectory()
