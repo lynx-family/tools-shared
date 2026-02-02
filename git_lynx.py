@@ -16,6 +16,7 @@ import subprocess
 
 from checkers.checker import Checker, CheckResult
 from checkers.checker_manager import CheckerManager
+from checkers.envsetup_utils import code_format_env_setup
 from utils.merge_request import MergeRequest
 from config import Config
 
@@ -178,6 +179,7 @@ def CMDformat(parser, args):
     )
     forbidden_dirs = Config.value("command-config", "format-command", "ignore-dirs")
     format_file_filter.init(options)
+    code_format_env_setup()
     try:
         if options.all:
             changed_files = mr.GetAllFiles()

@@ -4,6 +4,7 @@
 import sys
 
 import checkers.code_format_helper as code_format_helper
+from checkers.envsetup_utils import code_format_env_setup
 import checkers.format_file_filter as format_file_filter
 from checkers.checker import Checker, CheckResult
 from config import Config
@@ -22,6 +23,8 @@ class CodingStyleChecker(Checker):
         forbidden_dirs = Config.value(
             "checker-config", "coding-style-checker", "ignore-dirs"
         )
+        code_format_env_setup()
+
         for filename in changed_files:
             if format_file_filter.shouldFormatFile(
                 filename, forbidden_suffix, forbidden_dirs

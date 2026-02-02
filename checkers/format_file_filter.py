@@ -9,6 +9,7 @@ import platform
 from utils.merge_request import MergeRequest
 from config import Config
 import checkers.cpplint as cpplint
+from checkers.envsetup_utils import PRETTIER_FULL_NAME
 
 system = platform.system().lower()
 gn_path = "gn"
@@ -32,18 +33,19 @@ _FILE_EXTENSIONS = [
 ]
 # Commands should be used.
 _FORMAT_COMMAND = {
-    ".yml": ["npx", "--quiet", "--yes", "prettier@2.2.1 -w"],
-    ".yaml": ["npx", "--quiet", "--yes", "prettier@2.2.1 -w"],
-    ".ts": ["npx", "--quiet", "--yes", "prettier@2.2.1 -w"],
-    ".tsx": ["npx", "--quiet", "--yes", "prettier@2.2.1 -w"],
+    ".yml": ["npx", "--quiet", "--no-install", f"{PRETTIER_FULL_NAME}", "-w"],
+    ".yaml": ["npx", "--quiet", "--no-install", f"{PRETTIER_FULL_NAME}", "-w"],
+    ".ts": ["npx", "--quiet", "--no-install", f"{PRETTIER_FULL_NAME}", "-w"],
+    ".tsx": ["npx", "--quiet", "--no-install", f"{PRETTIER_FULL_NAME}", "-w"],
     ".gn": ["{} format ".format(gn_path)],
     ".gni": ["{} format ".format(gn_path)],
 }
+
 __FORMAT_COMMAND_NO_INSTALL = {
-    ".yml": "npx --quiet --no-install prettier@2.2.1",
-    ".yaml": "npx --quiet --no-install prettier@2.2.1",
-    ".ts": "npx --quiet --no-install prettier@2.2.1",
-    ".tsx": "npx --quiet --no-install prettier@2.2.1",
+    ".yml": ["npx", "--quiet", "--no-install", "prettier"],
+    ".yaml": ["npx", "--quiet", "--no-install", "prettier"],
+    ".ts": ["npx", "--quiet", "--no-install", "prettier"],
+    ".tsx": ["npx", "--quiet", "--no-install", "prettier"],
     ".gn": ["{} format ".format(gn_path)],
     ".gni": ["{} format ".format(gn_path)],
 }
@@ -104,8 +106,8 @@ def getFormatCommand(path):
     format_command = _FORMAT_COMMAND
 
     # read configuration
-    npx_no_install = Config.get("npx-no-install")
-    if npx_no_install:
+    prefer_local_prettier = Config.get("prefer_local_prettier")
+    if prefer_local_prettier:
         format_command = __FORMAT_COMMAND_NO_INSTALL
 
     for ext, command in list(format_command.items()):

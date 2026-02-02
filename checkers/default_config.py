@@ -44,3 +44,5 @@ command_default_config = {
 ai_commit_request_url = None
 
 external_checker_path = None
+
+prefer_local_prettier = False

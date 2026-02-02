@@ -6,6 +6,7 @@
 import subprocess, sys, os
 from utils.merge_request import MergeRequest
 from config import Config
+from checkers.envsetup_utils import PRETTIER_FULL_NAME
 
 
 def runCommand(cmd):
@@ -16,28 +17,26 @@ def runCommand(cmd):
 
 
 _CHECK_FORMAT_COMMAND = {
-    ".yml": "npx --quiet --yes prettier@2.2.1",
-    ".yaml": "npx --quiet --yes prettier@2.2.1",
-    ".ts": "npx --quiet --yes prettier@2.2.1",
-    ".tsx": "npx --quiet --yes prettier@2.2.1",
+    ".yml": f"npx --quiet --no-install {PRETTIER_FULL_NAME}",
+    ".yaml": f"npx --quiet --no-install {PRETTIER_FULL_NAME}",
+    ".ts": f"npx --quiet --no-install {PRETTIER_FULL_NAME}",
+    ".tsx": f"npx --quiet --no-install {PRETTIER_FULL_NAME}",
 }
 
 _CHECK_FORMAT_COMMAND_NO_INSTALL = {
-    ".yml": "npx --quiet --no-install prettier@2.2.1",
-    ".yaml": "npx --quiet --no-install prettier@2.2.1",
-    ".ts": "npx --quiet --no-install prettier@2.2.1",
-    ".tsx": "npx --quiet --no-install prettier@2.2.1",
+    ".yml": "npx --quiet --no-install prettier",
+    ".yaml": "npx --quiet --no-install prettier",
+    ".ts": "npx --quiet --no-install prettier",
+    ".tsx": "npx --quiet --no-install prettier",
 }
 
 
 def get_check_format_command(path):
-    check_format_command = _CHECK_FORMAT_COMMAND
-
-    # read configuration
-    npx_no_install = Config.get("npx-no-install")
-    if npx_no_install:
+    prefer_local_prettier = Config.get("prefer_local_prettier")
+    if not prefer_local_prettier:
+        check_format_command = _CHECK_FORMAT_COMMAND
+    else:
         check_format_command = _CHECK_FORMAT_COMMAND_NO_INSTALL
-
     for ext, command in list(check_format_command.items()):
         if path.endswith(ext):
             return command
