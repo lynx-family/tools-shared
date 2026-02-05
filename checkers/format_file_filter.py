@@ -42,10 +42,10 @@ _FORMAT_COMMAND = {
 }
 
 __FORMAT_COMMAND_NO_INSTALL = {
-    ".yml": ["npx", "--quiet", "--no-install", "prettier"],
-    ".yaml": ["npx", "--quiet", "--no-install", "prettier"],
-    ".ts": ["npx", "--quiet", "--no-install", "prettier"],
-    ".tsx": ["npx", "--quiet", "--no-install", "prettier"],
+    ".yml": ["npx", "--quiet", "--no-install", "prettier", "-w"],
+    ".yaml": ["npx", "--quiet", "--no-install", "prettier", "-w"],
+    ".ts": ["npx", "--quiet", "--no-install", "prettier", "-w"],
+    ".tsx": ["npx", "--quiet", "--no-install", "prettier", "-w"],
     ".gn": ["{} format ".format(gn_path)],
     ".gni": ["{} format ".format(gn_path)],
 }
