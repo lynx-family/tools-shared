@@ -31,7 +31,6 @@ def check_macros(content):
     ifdef_ndef_pattern = r"^\s*#(ifdef|ifndef)\b\s+(?P<macro_name>\w+)"
     ifdef_ndef_match = re.search(ifdef_ndef_pattern, content)
     if ifdef_ndef_match:
-        print(ifdef_ndef_match.group('macro_name').strip())
         macro_name = ifdef_ndef_match.group('macro_name').strip()
         return macro_name not in whitelist_def_keywords
 
