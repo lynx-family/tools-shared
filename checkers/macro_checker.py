@@ -24,7 +24,7 @@ def check_macros(content):
     if content.endswith("_H_") or content.endswith("_JNI"):
         return False
     # search for macro expressions using a regular expression pattern
-    pattern = r"^\s*#(define|ifdef|ifndef|if|elif|else)\b(?!.*\(.*\)).*$"
+    pattern = r"^\s*#(ifdef|ifndef|if|elif)\b(?!.*\(.*\)).*$"
     match = re.search(pattern, content)
 
     return bool(match)
