@@ -6,6 +6,10 @@ from checkers.checker import Checker, CheckResult
 import re
 
 
+whitelist_def_keywords = {
+    "_WIN32"
+}
+
 def check_if_macro_in_ut(content, file_name):
     content_pattern = r"^#define\s+(private|protected)\s+public$"
     content_match = re.search(content_pattern, content)
@@ -23,12 +27,39 @@ def check_macros(content):
     # skip header guard
     if content.endswith("_H_") or content.endswith("_JNI"):
         return False
-    # search for macro expressions using a regular expression pattern
-    pattern = r"^\s*#(ifdef|ifndef|if|elif)\b(?!.*\(.*\)).*$"
-    match = re.search(pattern, content)
 
-    return bool(match)
+    ifdef_ndef_pattern = r"^\s*#(ifdef|ifndef)\b\s+(?P<macro_name>\w+)"
+    ifdef_ndef_match = re.search(ifdef_ndef_pattern, content)
+    if ifdef_ndef_match:
+        print(ifdef_ndef_match.group('macro_name').strip())
+        macro_name = ifdef_ndef_match.group('macro_name').strip()
+        return macro_name not in whitelist_def_keywords
 
+    # if/elif supports operations, so need to be more careful
+    ifelif_pattern = r"^\s*#(if|elif)\b\s+(?P<expression>.*)$"
+    ifelif_match = re.search(ifelif_pattern, content)
+
+    if ifelif_match:
+        expression = ifelif_match.group('expression')
+        # capture the op and args
+        op_call_pattern = r"!?\s*(?P<op>[A-Za-z_]\w*)?\s*\(\s*(?P<param>[^()]+?)\s*\)"
+        # this is for handling cases like "!defined(A) && defined(B)"
+        for m in re.finditer(op_call_pattern, expression):
+            op = (m.group("op") or "").strip()
+            # "" is for cases like #if (OS_POXIS)
+            if op != "defined" and op != "":
+                return True
+            param = m.group("param").strip()
+            if param not in whitelist_def_keywords:
+                return True
+
+        scrubbed = re.sub(op_call_pattern, " ", expression)
+        # Not supporting comparisons
+        leftover = re.sub(r"[\s!&|()]+", "", scrubbed)
+        if leftover:
+            return True
+ 
+        return False
 
 def match_files(file_list):
     # regular expression pattern to match C/C++ and Objective-C source and header files
