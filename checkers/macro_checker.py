@@ -24,41 +24,150 @@ def check_if_macro_in_ut(content, file_name):
 
 def check_macros(content):
     content = content.strip()
-    # skip header guard
     if content.endswith("_H_") or content.endswith("_JNI"):
         return False
 
-    ifdef_ndef_pattern = r"^\s*#(ifdef|ifndef)\b\s+(?P<macro_name>\w+)"
-    ifdef_ndef_match = re.search(ifdef_ndef_pattern, content)
+    # #ifdef/ndef is simple as they only support for one identifier
+    ifdef_ndef_match = re.search(r"^\s*#(ifdef|ifndef)\b\s+(?P<macro_name>\w+)", content)
     if ifdef_ndef_match:
-        macro_name = ifdef_ndef_match.group('macro_name').strip()
+        macro_name = ifdef_ndef_match.group("macro_name").strip()
         return macro_name not in whitelist_def_keywords
 
-    # if/elif supports operations, so need to be more careful
-    ifelif_pattern = r"^\s*#(if|elif)\b\s+(?P<expression>.*)$"
-    ifelif_match = re.search(ifelif_pattern, content)
-
+    # #if/elif supports nestings and logical operators
+    # here we build a lexer and parser for the simplified grammar
+    ifelif_match = re.search(r"^\s*#(if|elif)\b\s+(?P<expression>.*)$", content)
     if ifelif_match:
-        expression = ifelif_match.group('expression')
-        # capture the op and args
-        op_call_pattern = r"!?\s*(?P<op>[A-Za-z_]\w*)?\s*\(\s*(?P<param>[^()]+?)\s*\)"
-        # this is for handling cases like "!defined(A) && defined(B)"
-        for m in re.finditer(op_call_pattern, expression):
-            op = (m.group("op") or "").strip()
-            # "" is for cases like #if (OS_POXIS)
-            if op != "defined" and op != "":
-                return True
-            param = m.group("param").strip()
-            if param not in whitelist_def_keywords:
-                return True
+        expression = ifelif_match.group("expression")
 
-        scrubbed = re.sub(op_call_pattern, " ", expression)
-        # Not supporting comparisons
-        leftover = re.sub(r"[\s!&|()]+", "", scrubbed)
-        if leftover:
+        try:
+            # a simple lexer
+            tokens = []
+            i = 0
+            n = len(expression)
+            while i < n:
+                ch = expression[i]
+                if ch.isspace():
+                    i += 1
+                    continue
+                if expression.startswith("&&", i):
+                    tokens.append(("AND", "&&"))
+                    i += 2
+                    continue
+                if expression.startswith("||", i):
+                    tokens.append(("OR", "||"))
+                    i += 2
+                    continue
+                if ch == "!":
+                    tokens.append(("NOT", "!"))
+                    i += 1
+                    continue
+                if ch == "(":
+                    tokens.append(("LPAREN", "("))
+                    i += 1
+                    continue
+                if ch == ")":
+                    tokens.append(("RPAREN", ")"))
+                    i += 1
+                    continue
+
+                m = re.match(r"[A-Za-z_]\w*", expression[i:])
+                if m:
+                    ident = m.group(0)
+                    tokens.append(("DEFINED" if ident == "defined" else "IDENT", ident))
+                    i += len(ident)
+                    continue
+                # errors will be captured and return True for.
+                # we rely on preprocessor for grammar validation, so no actual exception here
+                # e.g., unsupported operators
+                raise ValueError("unsupported_operator")
+
+            class _Parser:
+                def __init__(self, toks):
+                    self.toks = toks
+                    self.pos = 0
+
+                def _peek(self):
+                    return self.toks[self.pos] if self.pos < len(self.toks) else ("EOF", "")
+
+                def _accept(self, kind):
+                    if self._peek()[0] == kind:
+                        tok = self._peek()
+                        self.pos += 1
+                        return tok
+                    return None
+
+                def _expect(self, kind):
+                    tok = self._accept(kind)
+                    if tok is None:
+                        raise ValueError("expected_" + kind)
+
+                    return tok
+
+                def parse_expr(self):
+                    return self.parse_or()
+
+                def parse_or(self):
+                    node = self.parse_and()
+                    while self._accept("OR") is not None:
+                        rhs = self.parse_and()
+                        node = ("or", node, rhs)
+                    return node
+
+                def parse_and(self):
+                    node = self.parse_unary()
+                    while self._accept("AND") is not None:
+                        rhs = self.parse_unary()
+                        node = ("and", node, rhs)
+                    return node
+
+                def parse_unary(self):
+                    if self._accept("NOT") is not None:
+                        return ("not", self.parse_unary())
+                    return self.parse_primary()
+
+                def parse_primary(self):
+                    if self._accept("DEFINED") is not None:
+                        if self._accept("LPAREN") is not None:
+                            ident = self._expect("IDENT")[1]
+                            self._expect("RPAREN")
+                            return ("defined", ident)
+                        ident = self._expect("IDENT")[1]
+                        return ("defined", ident)
+
+                    ident_tok = self._accept("IDENT")
+                    if ident_tok is not None:
+                        return ("ident", ident_tok[1])
+
+                    if self._accept("LPAREN") is not None:
+                        node = self.parse_expr()
+                        self._expect("RPAREN")
+                        return node
+
+                    raise ValueError("expected_primary")
+
+            parser = _Parser(tokens)
+            ast = parser.parse_expr()
+            if parser._peek()[0] != "EOF":
+                raise ValueError("trailing_tokens")
+
+            # quick AST traversal
+            def _validate(node):
+                kind = node[0]
+                if kind == "defined":
+                    return node[1] in whitelist_def_keywords
+                if kind == "ident":
+                    return node[1] in whitelist_def_keywords
+                if kind == "not":
+                    return _validate(node[1])
+                if kind == "and" or kind == "or":
+                    return _validate(node[1]) and _validate(node[2])
+                return False
+
+            return not _validate(ast)
+        except Exception:
             return True
- 
-        return False
+
+    return False
 
 def match_files(file_list):
     # regular expression pattern to match C/C++ and Objective-C source and header files
@@ -125,3 +234,26 @@ if __name__ == "__main__":
 
     line = "#define tttt private public"
     assert not check_if_macro_in_ut(line, file_name)
+
+    assert check_macros("#if FOO")
+    assert check_macros("#if (FOO)")
+    assert not check_macros("#if _WIN32")
+    assert not check_macros("#if (_WIN32)")
+
+    assert check_macros("#if defined(FOO)")
+    assert not check_macros("#if defined(_WIN32)")
+    assert not check_macros("#if !defined(_WIN32)")
+    assert not check_macros("#if defined(_WIN32) && defined(_WIN32)")
+    assert not check_macros("#if defined(_WIN32) || defined(_WIN32)")
+
+    assert check_macros("#if defined(_WIN32) && defined(FOO)")
+    assert check_macros("#if _WIN32 && defined(FOO)")
+    assert not check_macros("#if _WIN32 && defined(_WIN32)")
+
+    assert check_macros("#if (OS_POSIX)")
+    assert check_macros("#if (OS_POSIX) && defined(_WIN32)")
+    assert check_macros("#if defined(_WIN32) == 1")
+
+    assert check_macros("#elif FOO")
+    
+    print("TESTS PASSED")
