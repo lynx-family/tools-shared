@@ -1,6 +1,36 @@
 # Copyright 2025 The Lynx Authors. All rights reserved.
 # Licensed under the Apache License Version 2.0 that can be found in the
 # LICENSE file in the root directory of this source tree.
+
+
+"""
+This script uses a simple lexer+parser to check if a macro can be used in directives.
+
+Lexical tokens:
+IDENT   := [A-Za-z_][A-Za-z0-9_]* - "defined"
+DEFINED := "defined"
+NOT     := !
+AND     := &&
+OR      := ||
+LPAREN  := (
+RPAREN  := )
+
+Parser grammar:
+expr        := or_expr ;
+
+or_expr     := and_expr ( OR and_expr )* ;
+
+and_expr    := unary ( AND unary )* ;
+
+unary       := NOT unary
+            | primary ;
+
+primary     := defined_expr
+            | IDENT
+            | LPAREN expr RPAREN ;
+
+defined_expr := DEFINED ( LPAREN IDENT RPAREN | IDENT ) ;
+"""
 from checkers.checker import Checker, CheckResult
 
 import re
@@ -226,5 +256,5 @@ if __name__ == "__main__":
     assert check_macros("#if (OS_POSIX) // a comment")
     assert check_macros("#if (OS_POSIX) /* a comment */")
     assert not check_macros("#if defined(_WIN32) /* a comment */")
-    
+
     print("TESTS PASSED")
