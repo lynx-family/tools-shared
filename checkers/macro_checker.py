@@ -250,6 +250,10 @@ if __name__ == "__main__":
     assert check_macros("#if (OS_POSIX)")
     assert check_macros("#if (OS_POSIX) && defined(_WIN32)")
     assert check_macros("#if defined(_WIN32) == 1")
+    assert check_macros("#if _WIN32 > 12")
+    assert check_macros("#if _WIN32 | 12")
+    assert check_macros("#if _WIN32 & 12")
+    assert check_macros("#if _WIN32 < 12")
 
     assert check_macros("#elif FOO")
 
