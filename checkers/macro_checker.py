@@ -10,18 +10,6 @@ whitelist_def_keywords = {
     "_WIN32"
 }
 
-def check_if_macro_in_ut(content, file_name):
-    content_pattern = r"^#define\s+(private|protected)\s+public$"
-    content_match = re.search(content_pattern, content)
-
-    file_pattern = r"^.*_(unittest|testing).*"
-    file_match = re.search(file_pattern, file_name)
-    if bool(content_match) and bool(file_match):
-        return True
-
-    return False
-
-
 def check_macros(content):
     content = content.strip()
     if content.endswith("_H_") or content.endswith("_JNI"):
@@ -190,9 +178,7 @@ class SpellChecker(Checker):
 
             if not match_files([file_name]):
                 continue
-            # if the macro is used in unittest file for testing, skip check
-            if check_if_macro_in_ut(line, file_name):
-                continue
+
             if check_macros(line):
                 print(r"%s:%d: %s" % (file_name, line_no, line))
                 result = CheckResult.FAILED
@@ -208,33 +194,6 @@ class SpellChecker(Checker):
 
 
 if __name__ == "__main__":
-    line = "#define private public"
-    file_name = "tttt_unittest.h"
-    assert check_if_macro_in_ut(line, file_name)
-
-    file_name = "tttt_unittest.cc"
-    assert check_if_macro_in_ut(line, file_name)
-
-    file_name = "tttt_for_testing.h"
-    assert check_if_macro_in_ut(line, file_name)
-
-    file_name = "tttt_for_testing.cc"
-    assert check_if_macro_in_ut(line, file_name)
-
-    file_name = "tttt.h"
-    assert not check_if_macro_in_ut(line, file_name)
-
-    file_name = "tttt_unittest.h"
-
-    line = "#define private public ttttt"
-    assert not check_if_macro_in_ut(line, file_name)
-
-    line = "ttttt #define private public"
-    assert not check_if_macro_in_ut(line, file_name)
-
-    line = "#define tttt private public"
-    assert not check_if_macro_in_ut(line, file_name)
-
     assert check_macros("#if FOO")
     assert check_macros("#if (FOO)")
     assert not check_macros("#if _WIN32")
