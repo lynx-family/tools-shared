@@ -6,7 +6,7 @@ from checkers.checker import Checker, CheckResult
 import re
 
 
-whitelist_def_keywords = {
+WHITELIST_MACROS = {
     "_WIN32"
 }
 
@@ -29,7 +29,7 @@ def check_macros(content):
         expression = ifelif_match.group("expression")
 
         try:
-            # a simple lexer
+            # the lexer tokenizes all the symbols in the expression
             tokens = []
             i = 0
             n = len(expression)
@@ -70,6 +70,7 @@ def check_macros(content):
                 # e.g., unsupported operators
                 raise ValueError("unsupported_operator")
 
+            # the parser builds an abstract syntax tree
             class _Parser:
                 def __init__(self, toks):
                     self.toks = toks
@@ -89,7 +90,6 @@ def check_macros(content):
                     tok = self._accept(kind)
                     if tok is None:
                         raise ValueError("expected_" + kind)
-
                     return tok
 
                 def parse_expr(self):
