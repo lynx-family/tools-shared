@@ -12,6 +12,7 @@ whitelist_def_keywords = {
 
 def check_macros(content):
     content = content.strip()
+    # skip header guard
     if content.endswith("_H_") or content.endswith("_JNI"):
         return False
 
