@@ -10,23 +10,94 @@ WHITELIST_MACROS = {
     "_WIN32"
 }
 
+# the parser builds an abstract syntax tree
+class Parser:
+    def __init__(self, toks):
+        self.toks = toks
+        self.pos = 0
+
+    def _peek(self):
+        return self.toks[self.pos] if self.pos < len(self.toks) else ("EOF", "")
+
+    def _accept(self, kind):
+        if self._peek()[0] == kind:
+            tok = self._peek()
+            self.pos += 1
+            return tok
+        return None
+
+    def _expect(self, kind):
+        tok = self._accept(kind)
+        if tok is None:
+            raise ValueError("expected_" + kind)
+        return tok
+
+    def parse_expr(self):
+        return self.parse_or()
+
+    def parse_or(self):
+        node = self.parse_and()
+        while self._accept("OR") is not None:
+            rhs = self.parse_and()
+            node = ("or", node, rhs)
+        return node
+
+    def parse_and(self):
+        node = self.parse_unary()
+        while self._accept("AND") is not None:
+            rhs = self.parse_unary()
+            node = ("and", node, rhs)
+        return node
+
+    def parse_unary(self):
+        if self._accept("NOT") is not None:
+            return ("not", self.parse_unary())
+        return self.parse_primary()
+
+    def parse_primary(self):
+        if self._accept("DEFINED") is not None:
+            if self._accept("LPAREN") is not None:
+                ident = self._expect("IDENT")[1]
+                self._expect("RPAREN")
+                return ("defined", ident)
+            ident = self._expect("IDENT")[1]
+            return ("defined", ident)
+
+        ident_tok = self._accept("IDENT")
+        if ident_tok is not None:
+            return ("ident", ident_tok[1])
+
+        if self._accept("LPAREN") is not None:
+            node = self.parse_expr()
+            self._expect("RPAREN")
+            return node
+
+        raise ValueError("expected_primary")
+
+
+
 def check_macros(content):
     content = content.strip()
+    if not content.startswith("#"):
+        return False
     # skip header guard
     if content.endswith("_H_") or content.endswith("_JNI"):
         return False
 
     # #ifdef/ndef is simple as they only support for one identifier
-    ifdef_ndef_match = re.search(r"^\s*#(ifdef|ifndef)\b\s+(?P<macro_name>\w+)", content)
+    ifdef_ndef_match = re.search(r"^\s*#(ifdef|ifndef)\b\s+(?P<macro_name>[A-Za-z_]\w*)", content)
     if ifdef_ndef_match:
         macro_name = ifdef_ndef_match.group("macro_name").strip()
-        return macro_name not in whitelist_def_keywords
+        return macro_name not in WHITELIST_MACROS
 
     # #if/elif supports nestings and logical operators
     # here we build a lexer and parser for the simplified grammar
     ifelif_match = re.search(r"^\s*#(if|elif)\b\s+(?P<expression>.*)$", content)
     if ifelif_match:
         expression = ifelif_match.group("expression")
+        # strip comments
+        expression = re.sub(r"/\*.*?\*/", "", expression)
+        expression = re.sub(r"//.*", "", expression)
 
         try:
             # the lexer tokenizes all the symbols in the expression
@@ -70,71 +141,7 @@ def check_macros(content):
                 # e.g., unsupported operators
                 raise ValueError("unsupported_operator")
 
-            # the parser builds an abstract syntax tree
-            class _Parser:
-                def __init__(self, toks):
-                    self.toks = toks
-                    self.pos = 0
-
-                def _peek(self):
-                    return self.toks[self.pos] if self.pos < len(self.toks) else ("EOF", "")
-
-                def _accept(self, kind):
-                    if self._peek()[0] == kind:
-                        tok = self._peek()
-                        self.pos += 1
-                        return tok
-                    return None
-
-                def _expect(self, kind):
-                    tok = self._accept(kind)
-                    if tok is None:
-                        raise ValueError("expected_" + kind)
-                    return tok
-
-                def parse_expr(self):
-                    return self.parse_or()
-
-                def parse_or(self):
-                    node = self.parse_and()
-                    while self._accept("OR") is not None:
-                        rhs = self.parse_and()
-                        node = ("or", node, rhs)
-                    return node
-
-                def parse_and(self):
-                    node = self.parse_unary()
-                    while self._accept("AND") is not None:
-                        rhs = self.parse_unary()
-                        node = ("and", node, rhs)
-                    return node
-
-                def parse_unary(self):
-                    if self._accept("NOT") is not None:
-                        return ("not", self.parse_unary())
-                    return self.parse_primary()
-
-                def parse_primary(self):
-                    if self._accept("DEFINED") is not None:
-                        if self._accept("LPAREN") is not None:
-                            ident = self._expect("IDENT")[1]
-                            self._expect("RPAREN")
-                            return ("defined", ident)
-                        ident = self._expect("IDENT")[1]
-                        return ("defined", ident)
-
-                    ident_tok = self._accept("IDENT")
-                    if ident_tok is not None:
-                        return ("ident", ident_tok[1])
-
-                    if self._accept("LPAREN") is not None:
-                        node = self.parse_expr()
-                        self._expect("RPAREN")
-                        return node
-
-                    raise ValueError("expected_primary")
-
-            parser = _Parser(tokens)
+            parser = Parser(tokens)
             ast = parser.parse_expr()
             if parser._peek()[0] != "EOF":
                 raise ValueError("trailing_tokens")
@@ -143,9 +150,9 @@ def check_macros(content):
             def _validate(node):
                 kind = node[0]
                 if kind == "defined":
-                    return node[1] in whitelist_def_keywords
+                    return node[1] in WHITELIST_MACROS
                 if kind == "ident":
-                    return node[1] in whitelist_def_keywords
+                    return node[1] in WHITELIST_MACROS
                 if kind == "not":
                     return _validate(node[1])
                 if kind == "and" or kind == "or":
@@ -215,5 +222,9 @@ if __name__ == "__main__":
     assert check_macros("#if defined(_WIN32) == 1")
 
     assert check_macros("#elif FOO")
+
+    assert check_macros("#if (OS_POSIX) // a comment")
+    assert check_macros("#if (OS_POSIX) /* a comment */")
+    assert not check_macros("#if defined(_WIN32) /* a comment */")
     
     print("TESTS PASSED")
