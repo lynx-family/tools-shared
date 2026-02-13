@@ -2,10 +2,6 @@
 # Licensed under the Apache License Version 2.0 that can be found in the
 # LICENSE file in the root directory of this source tree.
 
-# run: PYTHONPATH=tools-shared python3 tools-shared/checkers/test_macro_checker/test_else_only.py
-# Make sure you are in the root directory of the repository.
-
-
 import os
 import sys
 from pathlib import Path
