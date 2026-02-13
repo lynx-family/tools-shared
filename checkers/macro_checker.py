@@ -33,15 +33,113 @@ defined_expr := DEFINED ( LPAREN IDENT RPAREN | IDENT ) ;
 """
 from checkers.checker import Checker, CheckResult
 
+import os
 import re
 
+_PP_KIND_RE = re.compile(r"^\s*#\s*(if|ifdef|ifndef|elif|else|endif)\b")
+_IFDEF_NDEF_RE = re.compile(
+    r"^\s*#\s*(ifdef|ifndef)\b\s+(?P<macro_name>[A-Za-z_]\w*)"
+)
+_IF_ELIF_RE = re.compile(r"^\s*#\s*(if|elif)\b\s+(?P<expression>.*)$")
+_BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/")
+_LINE_COMMENT_RE = re.compile(r"//.*")
+_IDENT_RE = re.compile(r"[A-Za-z_]\w*")
+_SOURCE_FILE_RE = re.compile(r"^(?!.*_jni\.h$).*\.(c|cc|cpp|h|hpp|m|mm)$")
 
-WHITELIST_MACROS = {
-    "_WIN32"
-}
+WHITELIST_MACROS = frozenset({
+    "_WIN32",
+    "_WIN64"
+})
+
+# helper funcs
+
+# parse directive kind
+def _pp_directive_kind(line):
+    m = _PP_KIND_RE.match(line)
+    return m.group(1) if m else None
+
+# find the corresponding if/def/ndef/elif directive lines for a given #else line number
+def _collect_upper_level_condition_lines(all_lines, else_line_no):
+    depth = 0
+    elif_lines_reversed = []
+
+    for idx in range(else_line_no - 1, 0, -1):
+        line = all_lines[idx - 1]
+        kind = _pp_directive_kind(line)
+        if kind is None:
+            continue
+
+        if kind == "endif":
+            depth += 1
+            continue
+        if kind in {"if", "ifdef", "ifndef"}:
+            if depth == 0:
+                condition_lines = [line.rstrip("\n")]
+                condition_lines.extend(reversed(elif_lines_reversed))
+                return condition_lines
+            depth -= 1
+            continue
+        if depth != 0:
+            continue
+        if kind == "elif":
+            elif_lines_reversed.append(line.rstrip("\n"))
+        elif kind == "else":
+            return None
+
+    return None
+
+# check if a #else directive change is illegal by checking if the 
+# condition of the enclosing #if/elif directive contains any macro that is not whitelisted
+def _is_else_only_change_illegal(file_path, else_line_no):
+    if not os.path.isfile(file_path):
+        print(f"File {file_path} does not exist.")
+        return True, None
+ 
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            all_lines = f.readlines()
+    except Exception:
+        print(f"Failed to read file {file_path}.")
+        return True, None
+ 
+    condition_lines = _collect_upper_level_condition_lines(all_lines, else_line_no)
+    
+    if condition_lines is None:
+        print(f"Failed to find the corresponding conditional directives for #else line {else_line_no}.")
+        return True, None
+ 
+    for directive_line in condition_lines:
+        if check_macros(directive_line):
+            return True, directive_line
+ 
+    return False, None
+
+
+
+# categorize all changed files into two categories:
+# 1. files that only changed #else directives
+# 2. files that changed any of #if, #elif, #ifdef, #ifndef directives
+def _categorize_changed_lines(lines, line_indexes, get_file_name):
+    else_only_targets = {}
+    files_with_if_family = set()
+ 
+    for i, line in enumerate(lines):
+        file_name_index, line_no = line_indexes[i]
+        file_name = get_file_name(file_name_index)
+ 
+        if not match_file(file_name):
+            continue
+ 
+        kind = _pp_directive_kind(line)
+        if kind == "else":
+            else_only_targets.setdefault(file_name, []).append((line_no, line))
+        elif kind in {"if", "elif", "ifdef", "ifndef"}:
+            files_with_if_family.add(file_name)
+ 
+    return else_only_targets, files_with_if_family
 
 # the parser builds an abstract syntax tree
-class Parser:
+class MacroParser:
     def __init__(self, toks):
         self.toks = toks
         self.pos = 0
@@ -104,8 +202,6 @@ class Parser:
 
         raise ValueError("expected_primary")
 
-
-
 def check_macros(content):
     content = content.strip()
     if not content.startswith("#"):
@@ -115,19 +211,19 @@ def check_macros(content):
         return False
 
     # #ifdef/ndef is simple as they only support for one identifier
-    ifdef_ndef_match = re.search(r"^\s*#(ifdef|ifndef)\b\s+(?P<macro_name>[A-Za-z_]\w*)", content)
+    ifdef_ndef_match = _IFDEF_NDEF_RE.match(content)
     if ifdef_ndef_match:
         macro_name = ifdef_ndef_match.group("macro_name").strip()
         return macro_name not in WHITELIST_MACROS
 
     # #if/elif supports nestings and logical operators
     # here we build a lexer and parser for the simplified grammar
-    ifelif_match = re.search(r"^\s*#(if|elif)\b\s+(?P<expression>.*)$", content)
+    ifelif_match = _IF_ELIF_RE.match(content)
     if ifelif_match:
         expression = ifelif_match.group("expression")
         # strip comments
-        expression = re.sub(r"/\*.*?\*/", "", expression)
-        expression = re.sub(r"//.*", "", expression)
+        expression = _BLOCK_COMMENT_RE.sub("", expression) # a bit conservative as it fails /* only lines
+        expression = _LINE_COMMENT_RE.sub("", expression) 
 
         try:
             # the lexer tokenizes all the symbols in the expression
@@ -160,7 +256,7 @@ def check_macros(content):
                     i += 1
                     continue
 
-                m = re.match(r"[A-Za-z_]\w*", expression[i:])
+                m = _IDENT_RE.match(expression, i)
                 if m:
                     ident = m.group(0)
                     tokens.append(("DEFINED" if ident == "defined" else "IDENT", ident))
@@ -171,7 +267,7 @@ def check_macros(content):
                 # e.g., unsupported operators
                 raise ValueError("unsupported_operator")
 
-            parser = Parser(tokens)
+            parser = MacroParser(tokens)
             ast = parser.parse_expr()
             if parser._peek()[0] != "EOF":
                 raise ValueError("trailing_tokens")
@@ -195,26 +291,42 @@ def check_macros(content):
 
     return False
 
-def match_files(file_list):
+def match_file(filename):
     # regular expression pattern to match C/C++ and Objective-C source and header files
-    pattern = r"^(?!.*_jni\.h$).*\.(c|cc|cpp|h|hpp|m|mm)$"
+    return _SOURCE_FILE_RE.match(filename) is not None
 
-    for filename in file_list:
-        # check if the file matches the pattern
-        return bool(re.match(pattern, filename))
-
-
-class SpellChecker(Checker):
+class MacroChecker(Checker):
     name = "macro"
     help = "Check if macro is used in c/c++/objective-c"
 
     def check_changed_lines(self, options, lines, line_indexes, changed_files):
         result = CheckResult.PASSED
+
+        else_only_targets, files_with_if_family = _categorize_changed_lines(
+            lines, line_indexes, self.get_file_name
+        )
+
+        # get the diff of the 2 sets of files
+        for file_name, targets in else_only_targets.items():
+            if file_name in files_with_if_family:
+                continue
+ 
+            for line_no, line in targets:
+                res, line = _is_else_only_change_illegal(file_name, line_no)
+                if res:
+                    print("The pairing directve(s) of your #else directive change here is illegal:")
+                    print(r"%s:%d: %s" % (file_name, line_no, line))
+                    if line:
+                        print(f"Please check the pairing directive {line.strip()}.")
+                    else:
+                        print("Grammar issue or script bug.")
+                    result = CheckResult.FAILED
+
         for i, line in enumerate(lines):
             file_name_index, line_no = line_indexes[i]
             file_name = self.get_file_name(file_name_index)
 
-            if not match_files([file_name]):
+            if not match_file(file_name):
                 continue
 
             if check_macros(line):
