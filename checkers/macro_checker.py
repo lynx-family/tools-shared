@@ -293,13 +293,15 @@ def check_macros(content):
 
 def match_file(filename):
     # regular expression pattern to match C/C++ and Objective-C source and header files
-    return _SOURCE_FILE_RE.match(filename) is not None
+    # also exclude macro checker test files just in case:  test_macro_checker
+    return _SOURCE_FILE_RE.match(filename) is not None and "test_macro_checker" not in filename  
 
 class MacroChecker(Checker):
     name = "macro"
     help = "Check if macro is used in c/c++/objective-c"
 
     def check_changed_lines(self, options, lines, line_indexes, changed_files):
+
         result = CheckResult.PASSED
 
         else_only_targets, files_with_if_family = _categorize_changed_lines(
@@ -314,7 +316,7 @@ class MacroChecker(Checker):
             for line_no, line in targets:
                 res, line = _is_else_only_change_illegal(file_name, line_no)
                 if res:
-                    print("The pairing directve(s) of your #else directive change here is illegal:")
+                    print("The pairing directive(s) of your #else directive change here is illegal:")
                     print(r"%s:%d: %s" % (file_name, line_no, line))
                     if line:
                         print(f"Please check the pairing directive {line.strip()}.")
@@ -325,7 +327,6 @@ class MacroChecker(Checker):
         for i, line in enumerate(lines):
             file_name_index, line_no = line_indexes[i]
             file_name = self.get_file_name(file_name_index)
-
             if not match_file(file_name):
                 continue
 
