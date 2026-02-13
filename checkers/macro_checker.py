@@ -122,20 +122,20 @@ def _is_else_only_change_illegal(file_path, else_line_no):
 def _categorize_changed_lines(lines, line_indexes, get_file_name):
     else_only_targets = {}
     files_with_if_family = set()
- 
+
     for i, line in enumerate(lines):
         file_name_index, line_no = line_indexes[i]
         file_name = get_file_name(file_name_index)
- 
+
         if not match_file(file_name):
             continue
- 
+
         kind = _pp_directive_kind(line)
         if kind == "else":
             else_only_targets.setdefault(file_name, []).append((line_no, line))
         elif kind in {"if", "elif", "ifdef", "ifndef"}:
             files_with_if_family.add(file_name)
- 
+
     return else_only_targets, files_with_if_family
 
 # the parser builds an abstract syntax tree
@@ -223,7 +223,7 @@ def check_macros(content):
         expression = ifelif_match.group("expression")
         # strip comments
         expression = _BLOCK_COMMENT_RE.sub("", expression) # a bit conservative as it fails /* only lines
-        expression = _LINE_COMMENT_RE.sub("", expression) 
+        expression = _LINE_COMMENT_RE.sub("", expression)
 
         try:
             # the lexer tokenizes all the symbols in the expression
@@ -262,7 +262,7 @@ def check_macros(content):
                     tokens.append(("DEFINED" if ident == "defined" else "IDENT", ident))
                     i += len(ident)
                     continue
-                # errors will be captured and return True for.
+                # errors will be captured and returned True for.
                 # we rely on preprocessor for grammar validation, so no actual exception here
                 # e.g., unsupported operators
                 raise ValueError("unsupported_operator")
@@ -294,7 +294,7 @@ def check_macros(content):
 def match_file(filename):
     # regular expression pattern to match C/C++ and Objective-C source and header files
     # also exclude macro checker test files just in case:  test_macro_checker
-    return _SOURCE_FILE_RE.match(filename) is not None and "test_macro_checker" not in filename  
+    return _SOURCE_FILE_RE.match(filename) is not None and "test_macro_checker" not in filename
 
 class MacroChecker(Checker):
     name = "macro"
@@ -312,14 +312,14 @@ class MacroChecker(Checker):
         for file_name, targets in else_only_targets.items():
             if file_name in files_with_if_family:
                 continue
- 
+
             for line_no, line in targets:
-                res, line = _is_else_only_change_illegal(file_name, line_no)
+                res, bad_line = _is_else_only_change_illegal(file_name, line_no)
                 if res:
                     print("The pairing directive(s) of your #else directive change here is illegal:")
                     print(r"%s:%d: %s" % (file_name, line_no, line))
-                    if line:
-                        print(f"Please check the pairing directive {line.strip()}.")
+                    if bad_line:
+                        print(f"Please check the pairing directive {bad_line.strip()}.")
                     else:
                         print("Grammar issue or script bug.")
                     result = CheckResult.FAILED

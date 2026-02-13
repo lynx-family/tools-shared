@@ -18,7 +18,7 @@ def checker_wrapper(path, line_num):
     res, line = _is_else_only_change_illegal(path, line_num)
     if res:
         print("The pairing directive(s) of your #else directive change here is illegal:")
-        print(r"%s:%d: %s" % (path, line_num, line))
+        print(r"%s:%d: %s" % (path, line_num, "#else")) # this #else is a placeholder
         if line:
             print(f"Please check the pairing directive {line.strip()}.")
         else:
