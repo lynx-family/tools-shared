@@ -20,13 +20,10 @@ def check_and_install_prettier():
             text=True,
         )
         if result.returncode == 0:
-            print(
-                f"\033[31mprettier@{PRETTIER_VERSION} already exists locally, skip download\033[0m"
-            )
             return True
 
         print(
-            f"\033[31mprettier@{PRETTIER_VERSION} not found locally, starting download...\033[0m"
+            f"\033[33mprettier@{PRETTIER_VERSION} not found locally, starting download...\033[0m"
         )
         download_result = subprocess.run(
             [
@@ -43,11 +40,11 @@ def check_and_install_prettier():
         )
         if download_result.returncode != 0:
             print(
-                f"\033[31mFailed to download prettier@{PRETTIER_VERSION}: {download_result.stderr}\033[0m",
+                f"\033[33mFailed to download prettier@{PRETTIER_VERSION}: {download_result.stderr}\033[0m",
                 file=sys.stderr,
             )
             return False
-        print(f"\033[31mprettier@{PRETTIER_VERSION} downloaded successfully\033[0m")
+        print(f"\033[33mprettier@{PRETTIER_VERSION} downloaded successfully\033[0m")
         return True
     except Exception as e:
         print(
@@ -62,7 +59,3 @@ def code_format_env_setup():
     prefer_local_prettier = Config.get("prefer_local_prettier")
     if not prefer_local_prettier:
         check_and_install_prettier()
-    else:
-        print(
-            "\033[31mForce use of the local Prettier. Configure prefer_local_prettier to modify this behavior.\033[0m"
-        )
