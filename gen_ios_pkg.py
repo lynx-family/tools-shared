@@ -154,13 +154,6 @@ def main():
         "--no_json", action="store_true", help="Whether to generate podspec.json"
     )
 
-    parser.add_argument(
-        "--cache_path",
-        type=str,
-        default="./bundle",
-        help="Set the ruby cache dir",
-    )
-
     parser.add_argument("--repo", type=str, help="Replace the source of podspec")
     parser.add_argument(
         "--delete",
@@ -175,17 +168,8 @@ def main():
     source_dirs = ["build"]
 
     print("run generate_podspec")
-    gemfile_content = """source 'https://rubygems.org'
-        gem "cocoapods", '1.11.3'
-        gem "ffi", "1.16.3"
-    """
-    with open("Gemfile", "w") as f:
-        f.write(gemfile_content)
     run_command(
-        f"SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk bundle install --path {args.cache_path}"
-    )
-    run_command(
-        f"bundle exec pod ipc spec {repo_name}.podspec > {repo_name}.podspec.json"
+        f"pod ipc spec {repo_name}.podspec > {repo_name}.podspec.json"
     )
 
     version = get_podspec_version(repo_name)
