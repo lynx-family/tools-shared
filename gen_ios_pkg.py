@@ -175,14 +175,8 @@ def main():
     source_dirs = ["build"]
 
     print("run generate_podspec")
-    gemfile_content = """source 'https://rubygems.org'
-        gem "cocoapods", '1.11.3'
-        gem "ffi", "1.16.3"
-    """
-    with open("Gemfile", "w") as f:
-        f.write(gemfile_content)
     run_command(
-        f"SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk bundle install --path {args.cache_path}"
+        f"bundle config set path {args.cache_path} && SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk bundle install "
     )
     run_command(
         f"bundle exec pod ipc spec {repo_name}.podspec > {repo_name}.podspec.json"
